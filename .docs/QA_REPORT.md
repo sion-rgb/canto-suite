@@ -76,6 +76,9 @@ Observed Windows exports:
 
 ## Git state
 
-- Branch name: `master`; the repository has no `HEAD` commit yet.
-- Working tree: source/specification files are uncommitted (93 intent-to-add/worktree entries and 27 untracked paths at the final check). Existing staging intent was preserved.
-- Remote: none configured, so no commit or push was performed.
+- Branch name: `master`.
+- Initial verified-state commit: `d60d3361df8ec03ad3cf7c003d9bb1c46adada2c`.
+- Release tag: `v0.1.0-rc1` (points to the initial verified-state commit).
+- GitHub repository: `https://github.com/sion-rgb/canto-suite` (private).
+- GitHub pre-release: `https://github.com/sion-rgb/canto-suite/releases/tag/v0.1.0-rc1`.
+- Release assets: APK SHA-256 `9E164FF09533956B3FFE6E6FE2327BA26376E930503F2114478CB875DA0DFD8D`; Windows ZIP SHA-256 `6D553198E4EC52689C03A1C72E4A3F1306279B8549A5F08ED98188BE5362D74D`.
