@@ -1,0 +1,8 @@
+root ::= "{" ws "\"summary\"" ws ":" ws string "," ws "\"topics\"" ws ":" ws strings "," ws "\"decisions\"" ws ":" ws strings "," ws "\"actionItems\"" ws ":" ws actions "," ws "\"followUps\"" ws ":" ws strings "," ws "\"unresolvedQuestions\"" ws ":" ws strings "," ws "\"risks\"" ws ":" ws strings "}" ws
+
+strings ::= "[" ws (string ("," ws string)*)? "]" ws
+actions ::= "[" ws (action ("," ws action)*)? "]" ws
+action ::= "{" ws "\"text\"" ws ":" ws string "," ws "\"owner\"" ws ":" ws nullable "," ws "\"dueDate\"" ws ":" ws nullable "}" ws
+nullable ::= string | "null" ws
+string ::= "\"" ([^"\\\x7F\x00-\x1F] | "\\" (["\\bfnrt] | "u" [0-9a-fA-F]{4}))* "\"" ws
+ws ::= | " " | "\n" [ \t]{0,20}

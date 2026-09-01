@@ -1,0 +1,30 @@
+.model-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.model-panel h2 {
+  margin: 0 0 6px;
+}
+
+.model-panel p {
+  margin: 0;
+  color: #65756d;
+}
+
+.model-panel progress {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.model-panel button {
+  border: 0;
+  border-radius: 9px;
+  padding: 11px 16px;
+  color: white;
+  background: #176b4d;
+  font-weight: 650;
+  cursor: pointer;
+}

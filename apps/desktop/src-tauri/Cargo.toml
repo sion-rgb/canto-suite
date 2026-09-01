@@ -1,0 +1,34 @@
+[package]
+name = "canto-transcribe"
+version = "0.1.0"
+edition = "2024"
+license = "Proprietary"
+
+[lib]
+name = "canto_transcribe"
+path = "src/lib.rs"
+
+[[bin]]
+name = "canto-transcribe"
+path = "src/main.rs"
+required-features = ["desktop-app"]
+
+[features]
+default = []
+desktop-app = ["dep:tauri", "dep:tauri-plugin-dialog"]
+
+[dependencies]
+canto-core = { path = "../../../bindings/rust" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+sysinfo = "0.37"
+tauri = { version = "2", optional = true , features = [] }
+tauri-plugin-dialog = { version = "2", optional = true }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dev-dependencies]
+tempfile = "3"

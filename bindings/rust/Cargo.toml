@@ -1,0 +1,10 @@
+[package]
+name = "canto-core"
+version = "0.1.0"
+edition = "2024"
+license = "Proprietary"
+links = "canto_core_static"
+build = "build.rs"
+
+[build-dependencies]
+cc = "1.2"

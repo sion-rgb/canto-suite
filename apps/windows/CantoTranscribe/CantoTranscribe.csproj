@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>CantoTranscribe</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj\**;bin\**</DefaultItemExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="1.8.260803003" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\..\shared\model-catalog\catalog.v1.json" Link="resources\model-catalog\catalog.v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\shared\cantonese-dictionary\default.v1.json" Link="resources\cantonese-dictionary\default.v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\desktop\src-tauri\resources\bin\ffmpeg.exe" Link="resources\bin\ffmpeg.exe" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\desktop\src-tauri\resources\bin\ffprobe.exe" Link="resources\bin\ffprobe.exe" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\build\native-vs\native\canto-core\Release\canto_core.dll" Link="canto_core.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\third_party\sherpa-onnx\runtime\windows-x64\sherpa-onnx-c-api.dll" Link="sherpa-onnx-c-api.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\third_party\sherpa-onnx\runtime\windows-x64\onnxruntime.dll" Link="onnxruntime.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\third_party\sherpa-onnx\runtime\windows-x64\onnxruntime_providers_shared.dll" Link="onnxruntime_providers_shared.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\third_party\sherpa-onnx\licenses\*" Link="resources\licenses\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\third_party\whisper.cpp\LICENSE" Link="resources\licenses\whisper.cpp-LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\third_party\msvc-runtime\windows-x64\*.dll" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\third_party\msvc-runtime\REDISTRIBUTION.md" Link="resources\licenses\MSVC-RUNTIME-REDISTRIBUTION.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="CopyApplicationPriToPublish" AfterTargets="Publish" Condition="Exists('$(TargetDir)$(AssemblyName).pri')">
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).pri" DestinationFiles="$(PublishDir)$(AssemblyName).pri" />
+    <ItemGroup>
+      <UnusedWebViewPayload Include="$(PublishDir)Microsoft.Web.WebView2.Core.dll;$(PublishDir)Microsoft.Web.WebView2.Core.Projection.dll;$(PublishDir)WebView2Loader.dll" />
+    </ItemGroup>
+    <Delete Files="@(UnusedWebViewPayload)" />
+  </Target>
+</Project>

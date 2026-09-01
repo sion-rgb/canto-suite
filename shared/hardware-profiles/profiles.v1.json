@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "android": [
+    {"id": "low", "minRamMiB": 3072, "minFreeStorageMiB": 1024, "thermalPolicy": "recording-first", "label": "輕量"},
+    {"id": "standard", "minRamMiB": 6144, "minFreeStorageMiB": 3072, "thermalPolicy": "defer-quality-asr-when-hot", "label": "標準"},
+    {"id": "high", "minRamMiB": 10240, "minFreeStorageMiB": 7168, "thermalPolicy": "post-meeting-quality-only", "label": "高品質"}
+  ],
+  "windows": [
+    {"id": "fast", "minRamMiB": 4096, "minFreeStorageMiB": 2048, "label": "Fast"},
+    {"id": "balanced", "minRamMiB": 8192, "minFreeStorageMiB": 4096, "label": "Balanced"},
+    {"id": "high-accuracy", "minRamMiB": 16384, "minVramMiB": 6000, "minFreeStorageMiB": 8192, "label": "High Accuracy"}
+  ],
+  "selectionRule": "Choose the highest profile whose RAM, free storage, runtime support, and thermal policy all pass; device model name is never sufficient."
+}

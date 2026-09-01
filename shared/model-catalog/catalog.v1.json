@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "2026.09.01",
+  "generatedAt": "2026-09-01T00:00:00Z",
+  "models": [
+    {
+      "id": "sensevoice-yue-int8-2024-07-17",
+      "displayName": "Cantonese Compact ASR",
+      "role": ["LIVE_ASR", "QUALITY_ASR"],
+      "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+      "platform": ["android-arm64", "windows-x64"],
+      "backend": "sherpa-onnx-sense-voice",
+      "architecture": "SenseVoiceSmall INT8 ONNX",
+      "files": [
+        {
+          "path": "model.int8.onnx",
+          "size": 239233841,
+          "sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51",
+          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/model.int8.onnx?download=true"
+        },
+        {
+          "path": "tokens.txt",
+          "size": 315894,
+          "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc",
+          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/tokens.txt?download=true"
+        },
+        {
+          "path": "LICENSE",
+          "size": 71,
+          "sha256": "221c6df10b0931a5629adad671ea48fb7747e034c414b6d2bfa275bc3dd4ea17",
+          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/LICENSE?download=true"
+        }
+      ],
+      "requiredRamMiB": 700,
+      "recommendedRamMiB": 1400,
+      "cantonese": "upstream-verified",
+      "hongKongCantonese": "not-product-benchmarked",
+      "streaming": "bounded-offline-chunks",
+      "timestamps": false,
+      "runtime": {"name": "sherpa-onnx", "minimumVersion": "1.13.6"},
+      "license": {"model": "See packaged LICENSE", "reference": "https://k2-fsa.github.io/sherpa/onnx/sense-voice/pretrained.html"},
+      "enabled": true
+    },
+    {
+      "id": "whisper-base-multilingual-q5-1",
+      "displayName": "Whisper Base Multilingual Timestamp ASR",
+      "role": ["SRT_ASR"],
+      "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+      "platform": ["windows-x64"],
+      "backend": "whisper.cpp",
+      "architecture": "Whisper Base Multilingual GGML Q5_1",
+      "files": [
+        {
+          "path": "ggml-base-q5_1.bin",
+          "size": 59707625,
+          "sha256": "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898",
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q5_1.bin?download=true"
+        }
+      ],
+      "requiredRamMiB": 512,
+      "recommendedRamMiB": 1024,
+      "cantonese": "multilingual Whisper Chinese decoder; real Cantonese QA required",
+      "hongKongCantonese": "not-product-benchmarked",
+      "streaming": "bounded-offline-chunks",
+      "timestamps": "native whisper.cpp segment timestamps",
+      "runtime": {"name": "whisper.cpp", "minimumVersion": "1.9.3"},
+      "license": {"model": "MIT", "reference": "https://github.com/ggml-org/whisper.cpp/blob/v1.9.3/LICENSE"},
+      "enabled": true
+    },
+    {
+      "id": "qwen3-0.6b-q4-k-m",
+      "displayName": "Local Meeting Intelligence",
+      "role": ["MEETING_LLM"],
+      "revision": "1208e45d782fe18602c5eaf10e5758d5b0f24c03",
+      "platform": ["android-arm64"],
+      "backend": "llama.cpp",
+      "architecture": "Qwen3 0.6B Instruct GGUF Q4_K_M",
+      "files": [
+        {
+          "path": "Qwen3-0.6B-Q4_K_M.gguf",
+          "size": 396704416,
+          "sha256": "b0638f08417a2d3c8652760462eb5407c6e30173cf9608ad0820757a281eea0e",
+          "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/1208e45d782fe18602c5eaf10e5758d5b0f24c03/Qwen3-0.6B-Q4_K_M.gguf?download=true"
+        },
+        {
+          "path": "LICENSE",
+          "size": 11544,
+          "sha256": "5de36594c10839788a8c589443a8ef9d8b8d17c65a1b5807206ae037fc36c6bd",
+          "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/1208e45d782fe18602c5eaf10e5758d5b0f24c03/LICENSE?download=true"
+        }
+      ],
+      "requiredRamMiB": 1400,
+      "recommendedRamMiB": 2500,
+      "cantonese": "multilingual Chinese instruction model; meeting extraction QA required",
+      "hongKongCantonese": "not-product-benchmarked",
+      "streaming": "bounded hierarchical text chunks",
+      "timestamps": false,
+      "runtime": {"name": "llama.cpp", "minimumVersion": "b10516"},
+      "license": {"model": "Apache-2.0", "reference": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/blob/1208e45d782fe18602c5eaf10e5758d5b0f24c03/LICENSE"},
+      "enabled": true
+    },
+    {
+      "id": "silero-vad-sherpa-2025-07-11",
+      "displayName": "Voice Activity Detection",
+      "role": ["VAD"],
+      "revision": "2025-07-11",
+      "platform": ["android-arm64", "windows-x64"],
+      "backend": "sherpa-onnx-vad",
+      "architecture": "Silero VAD ONNX",
+      "files": [{
+        "path": "silero_vad.onnx",
+        "size": 643854,
+        "sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6",
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
+      }],
+      "requiredRamMiB": 32,
+      "recommendedRamMiB": 64,
+      "cantonese": "language-independent",
+      "hongKongCantonese": "language-independent",
+      "streaming": true,
+      "timestamps": false,
+      "runtime": {"name": "sherpa-onnx", "minimumVersion": "1.12.11"},
+      "license": {"model": "See upstream distribution", "reference": "https://k2-fsa.github.io/sherpa/onnx/pretrained_models/index.html"},
+      "enabled": false,
+      "disabledReason": "Native sherpa-onnx adapter is pending."
+    },
+    {
+      "id": "qwen3-asr-0.6b-reference",
+      "displayName": "Cantonese Quality ASR (evaluation candidate)",
+      "role": ["QUALITY_ASR"],
+      "revision": "5eb1441",
+      "platform": ["windows-x64"],
+      "backend": "unselected",
+      "architecture": "Qwen3-ASR 0.6B",
+      "files": [],
+      "requiredRamMiB": null,
+      "recommendedRamMiB": null,
+      "cantonese": "dialect-family-upstream-claimed",
+      "hongKongCantonese": "not-product-benchmarked",
+      "streaming": "not-integrated",
+      "timestamps": "not-validated",
+      "runtime": {"name": "none", "minimumVersion": null},
+      "license": {"model": "Apache-2.0", "reference": "https://huggingface.co/Qwen/Qwen3-ASR-0.6B"},
+      "enabled": false,
+      "disabledReason": "No validated C++ runtime adapter or product benchmark. This is a reference candidate only."
+    }
+  ]
+}

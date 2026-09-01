@@ -1,0 +1,7 @@
+name: canto_core
+description: Dart FFI ownership wrapper and persistent worker isolate for Canto Core.
+version: 0.1.0
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+dependencies:
+  ffi: ^2.1.4

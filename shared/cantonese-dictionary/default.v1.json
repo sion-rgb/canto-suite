@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "categories": ["People", "Company", "Places", "Technical", "Finance", "Custom"],
+  "entries": [
+    {"spoken": "union design", "display": "UNION Design HK", "category": "Company", "caseSensitive": false},
+    {"spoken": "a i", "display": "AI", "category": "Technical", "caseSensitive": false}
+  ],
+  "normalization": {
+    "preserve": ["我哋", "佢哋", "唔係", "冇", "喺", "啲", "咗", "睇吓", "搞掂", "嘅", "嚟", "噉"],
+    "mode": "longest-literal-match",
+    "neverRewriteRawTranscript": true
+  }
+}

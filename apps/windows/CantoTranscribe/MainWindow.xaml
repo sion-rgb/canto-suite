@@ -1,0 +1,62 @@
+<Window
+    x:Class="CantoTranscribe.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="CantoTranscribe">
+  <ScrollViewer>
+    <StackPanel Width="900" Margin="32">
+      <TextBlock Text="CantoTranscribe" FontSize="28" FontWeight="SemiBold"/>
+      <TextBlock Text="香港廣東話音訊／影片轉錄 · 只在本機處理 · 網絡只用於下載模型" Margin="0,6,0,24"/>
+
+      <TextBlock Text="本機廣東話模型" FontSize="18" FontWeight="SemiBold"/>
+      <TextBlock x:Name="ModelStatusText" Text="正在檢查電腦同模型…" TextWrapping="Wrap" Margin="0,6,0,8"/>
+      <ProgressBar x:Name="ModelProgress" Minimum="0" Maximum="1" Visibility="Collapsed"/>
+      <Button x:Name="InstallModelButton" Content="下載並驗證模型" Click="InstallModel_Click" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,8,0,10"/>
+      <TextBlock x:Name="SrtModelStatusText" Text="正在檢查 SRT 時間碼模型…" TextWrapping="Wrap" Margin="0,4,0,4"/>
+      <Button x:Name="InstallSrtModelButton" Content="下載並驗證 SRT 時間碼模型" Click="InstallSrtModel_Click" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,4,0,10"/>
+      <StackPanel Orientation="Horizontal" Margin="0,4,0,24">
+        <RadioButton x:Name="FastProfile" Content="快速" GroupName="Quality" Margin="0,0,22,0"/>
+        <RadioButton x:Name="BalancedProfile" Content="平衡 · 建議" GroupName="Quality" IsChecked="True" Margin="0,0,22,0"/>
+        <RadioButton x:Name="HighProfile" Content="高準確度" GroupName="Quality"/>
+      </StackPanel>
+
+      <Border x:Name="DropZone" AllowDrop="True" DragOver="DropZone_DragOver" Drop="DropZone_Drop"
+              BorderThickness="2" BorderBrush="Gray" CornerRadius="12" Padding="32">
+        <StackPanel HorizontalAlignment="Center">
+          <TextBlock Text="將影片或音訊拖到這裡" FontSize="23" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+          <TextBlock Text="MP4、MOV、MKV、MP3、M4A、AAC、WAV" HorizontalAlignment="Center" Margin="0,8"/>
+          <Button Content="選擇檔案" Click="ChooseFile_Click" HorizontalAlignment="Center"/>
+          <TextBlock x:Name="SelectedFileText" Text="尚未選擇檔案" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+        </StackPanel>
+      </Border>
+
+      <TextBlock Text="輸出格式" FontWeight="SemiBold" Margin="0,24,0,5"/>
+      <ComboBox x:Name="FormatBox" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="FormatBox_SelectionChanged">
+        <ComboBoxItem Content="TXT"/><ComboBoxItem Content="SRT"/>
+      </ComboBox>
+      <TextBlock Text="文字模式" FontWeight="SemiBold" Margin="0,14,0,5"/>
+      <ComboBox x:Name="TextModeBox" SelectedIndex="1" HorizontalAlignment="Stretch">
+        <ComboBoxItem Content="原始廣東話"/><ComboBoxItem Content="乾淨廣東話"/>
+      </ComboBox>
+      <TextBlock Text="輸出字體" FontWeight="SemiBold" Margin="0,14,0,5"/>
+      <ComboBox x:Name="ScriptBox" SelectedIndex="0" HorizontalAlignment="Stretch">
+        <ComboBoxItem Content="繁體中文（香港，預設）"/>
+        <ComboBoxItem Content="簡體中文"/>
+      </ComboBox>
+      <TextBlock Text="語言：香港廣東話" Margin="0,14,0,0"/>
+      <Button x:Name="StartButton" Content="開始轉錄" Click="Start_Click" HorizontalAlignment="Stretch" IsEnabled="False" Margin="0,18,0,24"/>
+
+      <TextBlock Text="轉錄狀態" FontSize="18" FontWeight="SemiBold"/>
+      <TextBlock x:Name="JobStatusText" Text="等候檔案" Margin="0,6"/>
+      <ProgressBar x:Name="JobProgress" Minimum="0" Maximum="100" Value="0"/>
+      <TextBlock x:Name="DurationText" Text="00:00:00 / 00:00:00" FontFamily="Consolas" Margin="0,5"/>
+      <TextBlock x:Name="PreviewText" Text="" TextWrapping="Wrap" MaxHeight="90"/>
+      <Button x:Name="CancelButton" Content="取消" Click="Cancel_Click" HorizontalAlignment="Left" Visibility="Collapsed"/>
+      <StackPanel Orientation="Horizontal" Margin="0,10">
+        <Button x:Name="OpenFileButton" Content="開啟檔案" Click="OpenFile_Click" Visibility="Collapsed" Margin="0,0,8,0"/>
+        <Button x:Name="OpenFolderButton" Content="開啟資料夾" Click="OpenFolder_Click" Visibility="Collapsed"/>
+      </StackPanel>
+      <TextBlock Text="廣東話顯示測試：嘅 · 喺 · 冇 · 咗 · 啲 · 嚟 · 噉" HorizontalAlignment="Center" Margin="0,18"/>
+    </StackPanel>
+  </ScrollViewer>
+</Window>

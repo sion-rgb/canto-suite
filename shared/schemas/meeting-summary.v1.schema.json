@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
+  "required": ["summary", "topics", "decisions", "actionItems", "followUps", "unresolvedQuestions"],
+  "properties": {
+    "summary": {"type": ["string", "null"]}, "topics": {"type": "array", "items": {"type": "string"}},
+    "decisions": {"type": "array", "items": {"type": "object", "required": ["text"], "properties": {"text": {"type": "string"}, "evidenceSegmentIds": {"type": "array", "items": {"type": "string"}}}},
+    "actionItems": {"type": "array", "items": {"type": "object", "required": ["text", "owner", "dueDate"], "properties": {"text": {"type": "string"}, "owner": {"type": ["string", "null"]}, "dueDate": {"type": ["string", "null"]}, "evidenceSegmentIds": {"type": "array", "items": {"type": "string"}}}},
+    "followUps": {"type": "array", "items": {"type": "string"}}, "unresolvedQuestions": {"type": "array", "items": {"type": "string"}}, "risks": {"type": "array", "items": {"type": "string"}}
+  }, "additionalProperties": false
+}

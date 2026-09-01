@@ -1,0 +1,48 @@
+# Build output
+build/
+out/
+target/
+.dart_tool/
+.flutter-plugins*
+.packages
+node_modules/
+dist/
+release/
+
+# IDE and local state
+.idea/
+.vscode/
+*.user
+*.suo
+*.log
+*.part
+*.tmp
+.env
+.env.*
+!.env.example
+local.properties
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.pem
+*.key
+credentials*.json
+secrets*.json
+third_party/whisper.cpp/samples/*.mp3
+third_party/whisper.cpp/bindings/go/samples/*.wav
+
+# Generated mobile/desktop files
+apps/mobile/android/.gradle/
+apps/mobile/build/
+apps/mobile/android/local.properties
+apps/desktop/src-tauri/gen/
+apps/desktop/src-tauri/resources/bin/*.exe
+apps/windows/**/bin/
+apps/windows/**/obj/
+
+# Model weights are downloaded at runtime
+models/
+*.onnx
+*.gguf
+*.bin

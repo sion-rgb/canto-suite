@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://canto.local/schemas/model-catalog-v1.json",
+  "type": "object",
+  "required": ["schemaVersion", "catalogVersion", "models"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "catalogVersion": {"type": "string"},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "models": {"type": "array", "items": {"$ref": "#/$defs/model"}}
+  },
+  "$defs": {
+    "file": {
+      "type": "object", "required": ["path", "size", "sha256", "url"],
+      "properties": {"path": {"type": "string"}, "size": {"type": "integer", "minimum": 1}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "url": {"type": "string", "format": "uri"}, "archive": {"enum": ["tar.bz2", "zip"]}}
+    },
+    "model": {
+      "type": "object",
+      "required": ["id", "displayName", "role", "revision", "platform", "backend", "architecture", "files", "cantonese", "hongKongCantonese", "streaming", "timestamps", "runtime", "license", "enabled"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"}, "displayName": {"type": "string"},
+        "role": {"type": "array", "items": {"enum": ["LIVE_ASR", "QUALITY_ASR", "MEETING_LLM", "VAD", "DIARIZATION", "SRT_ASR"]}},
+        "revision": {"type": "string"}, "platform": {"type": "array", "items": {"type": "string"}}, "backend": {"type": "string"}, "architecture": {"type": "string"},
+        "files": {"type": "array", "items": {"$ref": "#/$defs/file"}}, "requiredRamMiB": {"type": ["integer", "null"]}, "recommendedRamMiB": {"type": ["integer", "null"]},
+        "cantonese": {"type": ["string", "boolean"]}, "hongKongCantonese": {"type": ["string", "boolean"]}, "streaming": {"type": ["string", "boolean"]}, "timestamps": {"type": ["string", "boolean"]},
+        "runtime": {"type": "object"}, "license": {"type": "object"}, "enabled": {"type": "boolean"}, "disabledReason": {"type": "string"}
+      }
+    }
+  }
+}

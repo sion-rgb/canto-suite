@@ -1,0 +1,7 @@
+Upstream: https://github.com/ggml-org/llama.cpp
+Release: b10516
+Commit: b95502ba9aa0eb73a2f4fc8878d7fbe6a847a0b9
+Android ARM64 archive SHA-256: 1d2f78c13ec4a6197506288ba0aa0853d71c1b3048ff771ea37791be7f591cc6
+
+Only the public headers and official prebuilt Android ARM64 runtime libraries
+required by CantoMeet are vendored. The upstream LICENSE is included unchanged.
