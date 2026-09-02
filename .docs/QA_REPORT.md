@@ -87,6 +87,6 @@ OpenCC dictionary revision: `26753884f1984add422f3b0249ccee8613deaff6`, Apache-2
 ## Git state
 
 - Branch: `master`.
-- Pre-change commit: `de6f15548ee2851d5627c53f1001c16d35596fea`.
+- Verified implementation commit: `4be05ab5778bb4abee63011f0b697d6291842d07`.
 - Remote: `https://github.com/sion-rgb/canto-suite` (private).
-- This QA update is to be committed and pushed after the final release-gate rerun.
+- Verified implementation and final QA metadata are pushed to `origin/master`.
