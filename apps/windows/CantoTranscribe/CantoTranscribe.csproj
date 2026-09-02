@@ -23,6 +23,7 @@
   <ItemGroup>
     <Content Include="..\..\..\shared\model-catalog\catalog.v1.json" Link="resources\model-catalog\catalog.v1.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\shared\cantonese-dictionary\default.v1.json" Link="resources\cantonese-dictionary\default.v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\shared\opencc\*" Link="resources\opencc\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\desktop\src-tauri\resources\bin\ffmpeg.exe" Link="resources\bin\ffmpeg.exe" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\desktop\src-tauri\resources\bin\ffprobe.exe" Link="resources\bin\ffprobe.exe" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\..\..\build\native-vs\native\canto-core\Release\canto_core.dll" Link="canto_core.dll" CopyToOutputDirectory="PreserveNewest" />

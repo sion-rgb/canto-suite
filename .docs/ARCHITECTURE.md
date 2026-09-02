@@ -22,7 +22,7 @@ The WinUI application is the production Windows product. Tauri remains in `apps/
 
 Every `canto_engine` is independent. `canto_push_pcm16` copies caller memory into a fixed-capacity ring and never retains caller pointers. A native worker consumes bounded chunks; saturation returns `CANTO_QUEUE_FULL` and callers apply backpressure while draining results. Result text crosses the C ABI with one allocation and an explicit free.
 
-SenseVoice is used for real Cantonese live/quality text. whisper.cpp 1.9.3 is used for timestamp-capable Windows SRT. The deterministic backend is compiled only for tests.
+SenseVoice is used for Android live/quality text and the Windows Fast TXT role. Windows Balanced uses Whisper Small Q5_1 and High Accuracy uses Whisper Large-v3-Turbo Q5_0; both TXT and SRT roles use the same stable C ABI/C++ worker, while Fast SRT uses Whisper Base Q5_1. Model role and quality profile are persisted separately. The deterministic backend is compiled only for tests.
 
 ## CantoMeet persistence and recovery
 
@@ -36,4 +36,4 @@ Packaged FFmpeg emits 16 kHz mono PCM16 through stdout; the complete decoded med
 
 ## Privacy
 
-The only HTTP clients are inside model installers. Audio capture, decoding, ASR, Chinese script conversion, dictionary cleanup, transcript storage, meeting extraction, and export have no content-upload endpoint, localhost server, or cloud inference path.
+The only HTTP clients are inside model installers. Download artifacts have multiple SHA-pinned sources with bounded retry/fallback and same-identity Range resume. Audio capture, decoding, ASR, pinned OpenCC `s2hk` conversion, dictionary cleanup, transcript storage, meeting extraction, and export have no content-upload endpoint, localhost server, or cloud inference path.

@@ -476,8 +476,19 @@ canto_status canto_model_load(canto_engine* engine, const char* model_path) {
 #endif
 #if defined(CANTO_ENABLE_WHISPER_CPP)
   try {
-    const auto model = std::filesystem::path(model_path) / "ggml-base-q5_1.bin";
-    if (std::filesystem::is_regular_file(model)) {
+    const auto directory = std::filesystem::path(model_path);
+    std::filesystem::path model;
+    if (std::filesystem::is_directory(directory)) {
+      for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+        const auto name = entry.path().filename().string();
+        if (entry.is_regular_file() && entry.path().extension() == ".bin" &&
+            name.rfind("ggml-", 0) == 0) {
+          if (!model.empty()) return CANTO_MODEL_ERROR;
+          model = entry.path();
+        }
+      }
+    }
+    if (!model.empty()) {
       auto params = whisper_context_default_params();
       params.use_gpu = false;
       auto holder = std::make_shared<WhisperRecognizer>();

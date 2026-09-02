@@ -15,10 +15,34 @@
       <TextBlock x:Name="SrtModelStatusText" Text="正在檢查 SRT 時間碼模型…" TextWrapping="Wrap" Margin="0,4,0,4"/>
       <Button x:Name="InstallSrtModelButton" Content="下載並驗證 SRT 時間碼模型" Click="InstallSrtModel_Click" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,4,0,10"/>
       <StackPanel Orientation="Horizontal" Margin="0,4,0,24">
-        <RadioButton x:Name="FastProfile" Content="快速" GroupName="Quality" Margin="0,0,22,0"/>
-        <RadioButton x:Name="BalancedProfile" Content="平衡 · 建議" GroupName="Quality" IsChecked="True" Margin="0,0,22,0"/>
-        <RadioButton x:Name="HighProfile" Content="高準確度" GroupName="Quality"/>
+        <RadioButton x:Name="FastProfile" Content="快速" GroupName="Quality" Checked="QualityProfile_Checked" Margin="0,0,22,0"/>
+        <RadioButton x:Name="BalancedProfile" Content="平衡 · 建議" GroupName="Quality" Checked="QualityProfile_Checked" Margin="0,0,22,0"/>
+        <RadioButton x:Name="HighProfile" Content="高準確度" GroupName="Quality" Checked="QualityProfile_Checked"/>
       </StackPanel>
+
+      <Button Content="模型管理" Click="ToggleModelManagement_Click" HorizontalAlignment="Left" Margin="0,0,0,10"/>
+      <Border x:Name="ModelManagementPanel" Visibility="Collapsed" BorderThickness="1" BorderBrush="Gray" CornerRadius="10" Padding="18" Margin="0,0,0,24">
+        <StackPanel>
+          <TextBlock Text="模型管理" FontSize="20" FontWeight="SemiBold"/>
+          <TextBlock Text="模型角色同品質設定分開管理；你可以為 TXT、SRT 各自選擇已驗證模型。" TextWrapping="Wrap" Margin="0,4,0,12"/>
+          <TextBlock Text="目前 TXT 模型" FontWeight="SemiBold"/>
+          <ComboBox x:Name="ActiveTxtModelBox" DisplayMemberPath="DisplayName" Margin="0,4,0,10" SelectionChanged="ActiveTxtModel_SelectionChanged"/>
+          <TextBlock Text="目前 SRT 模型" FontWeight="SemiBold"/>
+          <ComboBox x:Name="ActiveSrtModelBox" DisplayMemberPath="DisplayName" Margin="0,4,0,10" SelectionChanged="ActiveSrtModel_SelectionChanged"/>
+          <TextBlock x:Name="ModelStorageText" Text="儲存空間：正在計算…" Margin="0,0,0,10"/>
+          <TextBlock x:Name="InstalledModelsText" Text="" TextWrapping="Wrap" Margin="0,0,0,12"/>
+          <TextBlock Text="管理單一模型" FontWeight="SemiBold"/>
+          <ComboBox x:Name="ManagedModelBox" DisplayMemberPath="DisplayName" Margin="0,4,0,8"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="下載" Click="ManageDownload_Click"/>
+            <Button Content="設為 TXT" Click="ManageSetTxt_Click"/>
+            <Button Content="設為 SRT" Click="ManageSetSrt_Click"/>
+            <Button Content="修復／更新" Click="ManageRepair_Click"/>
+            <Button Content="刪除" Click="ManageDelete_Click"/>
+            <Button Content="重新下載" Click="ManageRedownload_Click"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
 
       <Border x:Name="DropZone" AllowDrop="True" DragOver="DropZone_DragOver" Drop="DropZone_Drop"
               BorderThickness="2" BorderBrush="Gray" CornerRadius="12" Padding="32">
@@ -38,9 +62,9 @@
       <ComboBox x:Name="TextModeBox" SelectedIndex="1" HorizontalAlignment="Stretch">
         <ComboBoxItem Content="原始廣東話"/><ComboBoxItem Content="乾淨廣東話"/>
       </ComboBox>
-      <TextBlock Text="輸出字體" FontWeight="SemiBold" Margin="0,14,0,5"/>
+      <TextBlock Text="輸出中文格式" FontWeight="SemiBold" Margin="0,14,0,5"/>
       <ComboBox x:Name="ScriptBox" SelectedIndex="0" HorizontalAlignment="Stretch">
-        <ComboBoxItem Content="繁體中文（香港，預設）"/>
+        <ComboBoxItem Content="香港繁體（預設）"/>
         <ComboBoxItem Content="簡體中文"/>
       </ComboBox>
       <TextBlock Text="語言：香港廣東話" Margin="0,14,0,0"/>

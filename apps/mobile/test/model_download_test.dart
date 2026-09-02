@@ -21,10 +21,15 @@ void main() {
     String? range;
     final client = MockClient((request) async {
       range = request.headers['range'];
-      return http.Response.bytes(bytes.sublist(8), 206);
+      return http.Response.bytes(bytes.sublist(8), 206, headers: {
+        'content-range': 'bytes 8-${bytes.length - 1}/${bytes.length}'
+      });
     });
     final file = ModelFile(
-        url: Uri.parse('https://models.invalid/model.bin'),
+        sources: [
+          ModelSource(
+              label: 'test', url: Uri.parse('https://models.invalid/model.bin'))
+        ],
         relativePath: 'model.bin',
         sha256: sha256.convert(bytes).toString(),
         size: bytes.length);
@@ -53,14 +58,62 @@ void main() {
     final bytes = utf8.encode('corrupt');
     final client = MockClient((_) async => http.Response.bytes(bytes, 200));
     final file = ModelFile(
-        url: Uri.parse('https://models.invalid/model.bin'),
+        sources: [
+          ModelSource(
+              label: 'test', url: Uri.parse('https://models.invalid/model.bin'))
+        ],
         relativePath: 'model.bin',
         sha256: sha256.convert(utf8.encode('expected')).toString(),
         size: bytes.length);
 
     await expectLater(
         ModelInstaller(root, client).install('model', 'revision', [file]),
-        throwsStateError);
+        throwsA(isA<ModelInstallException>()));
     expect(await old.readAsString(), 'old');
+  });
+
+  test('DNS failure retries then falls back without discarding resumable bytes',
+      () async {
+    final root = await Directory.systemTemp.createTemp('canto-model-test-');
+    addTearDown(() => root.delete(recursive: true));
+    final bytes = utf8.encode('same-pinned-artifact-from-fallback');
+    final staging = Directory(p.join(root.path, '.staging', 'model-revision'));
+    await staging.create(recursive: true);
+    await File(p.join(staging.path, 'model.bin.part'))
+        .writeAsBytes(bytes.sublist(0, 7));
+    var primaryAttempts = 0;
+    var fallbackAttempts = 0;
+    final client = MockClient((request) async {
+      if (request.url.host == 'offline.invalid') {
+        primaryAttempts++;
+        throw http.ClientException('Failed host lookup', request.url);
+      }
+      fallbackAttempts++;
+      expect(request.headers['range'], 'bytes=7-');
+      return http.Response.bytes(bytes.sublist(7), 206, headers: {
+        'content-range': 'bytes 7-${bytes.length - 1}/${bytes.length}'
+      });
+    });
+    final file = ModelFile(
+        sources: [
+          ModelSource(
+              label: 'primary',
+              url: Uri.parse('https://offline.invalid/model.bin')),
+          ModelSource(
+              label: 'fallback',
+              url: Uri.parse('https://fallback.invalid/model.bin')),
+        ],
+        relativePath: 'model.bin',
+        sha256: sha256.convert(bytes).toString(),
+        size: bytes.length);
+
+    await ModelInstaller(root, client).install('model', 'revision', [file]);
+
+    expect(primaryAttempts, 2);
+    expect(fallbackAttempts, 1);
+    expect(
+        await File(p.join(root.path, 'model', 'revision', 'model.bin'))
+            .readAsBytes(),
+        bytes);
   });
 }

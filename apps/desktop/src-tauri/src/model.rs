@@ -32,6 +32,11 @@ struct CatalogFile {
     path: String,
     size: u64,
     sha256: String,
+    sources: Vec<CatalogSource>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct CatalogSource {
     url: String,
 }
 
@@ -173,7 +178,11 @@ pub fn install(
             fs::remove_file(&part).map_err(|error| error.to_string())?;
         }
         let existing = part.metadata().map_or(0, |metadata| metadata.len());
-        let mut request = client.get(&catalog_file.url);
+        let source = catalog_file
+            .sources
+            .first()
+            .ok_or_else(|| format!("模型未有下載來源：{}", catalog_file.path))?;
+        let mut request = client.get(&source.url);
         if existing > 0 {
             request = request.header(RANGE, format!("bytes={existing}-"));
         }
@@ -247,5 +256,6 @@ mod tests {
         assert_eq!(model.id, "sensevoice-yue-int8-2024-07-17");
         assert!(model.files.iter().any(|file| file.path == "model.int8.onnx"));
         assert!(model.files.iter().all(|file| file.sha256.len() == 64));
+        assert!(model.files.iter().all(|file| file.sources.len() >= 2));
     }
 }

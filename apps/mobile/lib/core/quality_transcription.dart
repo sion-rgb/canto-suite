@@ -12,9 +12,10 @@ class ChineseOutputConverter {
       MethodChannel('hk.canto.canto_meet/audio_control');
 
   static Future<String> convert(String text,
-          {required bool simplified}) async =>
+          {required bool simplified, bool clean = false}) async =>
       (await _channel.invokeMethod<String>(
-          'convertChinese', {'text': text, 'simplified': simplified})) ??
+          'convertChinese',
+          {'text': text, 'simplified': simplified, 'clean': clean})) ??
       text;
 }
 
@@ -35,7 +36,8 @@ class QualityTranscriber {
     for (var index = 0; index < segments.length; index++) {
       final text = await _transcribeFile(segments[index].audioPath, modelPath);
       final formal =
-          await ChineseOutputConverter.convert(text, simplified: simplified);
+          await ChineseOutputConverter.convert(text,
+              simplified: simplified, clean: true);
       await store.saveQualityTranscript(segments[index].id, formal);
       onProgress?.call(index + 1, segments.length);
     }

@@ -12,6 +12,12 @@ internal sealed record DictionaryEntry(
 
 internal sealed class DictionaryService
 {
+    private static readonly Regex ExcessiveFillers = new(
+        @"(?<f>呃|嗯|哦)(?:[\s，,、]*\k<f>){2,}",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex RepeatedRestart = new(
+        @"(?<p>即係|其實|我哋|咁樣)(?:[\s，,、]+\k<p>)+",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private readonly List<DictionaryEntry> _entries;
 
     public DictionaryService()
@@ -32,6 +38,14 @@ internal sealed class DictionaryService
                 _ => entry.Display,
                 entry.CaseSensitive ? RegexOptions.CultureInvariant : RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         }
+        output = ExcessiveFillers.Replace(output, match => match.Groups["f"].Value);
+        output = RepeatedRestart.Replace(output, match => match.Groups["p"].Value);
+        output = Regex.Replace(output, @"[，,、]{2,}", "，", RegexOptions.CultureInvariant);
+        output = Regex.Replace(output, @"\s+([，。！？；：])", "$1", RegexOptions.CultureInvariant);
+        output = Regex.Replace(output, @"([，。！？；：])\s+", "$1", RegexOptions.CultureInvariant);
+        if (Regex.IsMatch(output, @"[\u3400-\u9fff]", RegexOptions.CultureInvariant) &&
+            !Regex.IsMatch(output, @"[。！？….!?]$", RegexOptions.CultureInvariant))
+            output += "。";
         return output;
     }
 }

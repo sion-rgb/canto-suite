@@ -82,9 +82,12 @@ internal sealed class TranscriptionService
         await decoder.WaitForExitAsync(cancellationToken);
         if (decoder.ExitCode != 0) throw new InvalidDataException("FFmpeg 解碼失敗：" + await errorTask);
         if (!receivedFinal) throw new TimeoutException("等待 ASR 完成逾時");
-        var outputSegments = segments.Select(item => new TimedText(item.StartMs, item.EndMs,
-            ChineseScriptConverter.Convert(item.RawText, outputScript),
-            ChineseScriptConverter.Convert(item.CleanText, outputScript))).ToList();
+        var outputSegments = segments.Select(item =>
+        {
+            var normalizedRaw = ChineseScriptConverter.Convert(item.RawText, outputScript);
+            return new TimedText(item.StartMs, item.EndMs, normalizedRaw,
+                _dictionary.Clean(normalizedRaw));
+        }).ToList();
         var contents = format == "TXT"
             ? string.Join(Environment.NewLine, outputSegments.Select(item => clean ? item.CleanText : item.RawText))
             : SrtFormatter.Render(outputSegments, clean);

@@ -14,5 +14,11 @@
     <Content Include="..\..\..\shared\cantonese-dictionary\default.v1.json"
              Link="resources\cantonese-dictionary\default.v1.json"
              CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\shared\opencc\*"
+             Link="resources\opencc\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\..\shared\model-catalog\catalog.v1.json"
+             Link="resources\model-catalog\catalog.v1.json"
+             CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

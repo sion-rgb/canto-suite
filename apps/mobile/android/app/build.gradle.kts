@@ -50,6 +50,10 @@ android {
         }
     }
 
+    sourceSets {
+        getByName("main").assets.srcDir("../../../../shared")
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

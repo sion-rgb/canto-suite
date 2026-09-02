@@ -1,12 +1,13 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "2026.09.01",
-  "generatedAt": "2026-09-01T00:00:00Z",
+  "catalogVersion": "2026.09.02",
+  "generatedAt": "2026-09-02T00:00:00Z",
   "models": [
     {
       "id": "sensevoice-yue-int8-2024-07-17",
       "displayName": "Cantonese Compact ASR",
-      "role": ["LIVE_ASR", "QUALITY_ASR"],
+      "role": ["LIVE_ASR", "QUALITY_ASR", "TXT_ASR"],
+      "qualityProfiles": {"TXT_ASR": ["Fast"]},
       "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
       "platform": ["android-arm64", "windows-x64"],
       "backend": "sherpa-onnx-sense-voice",
@@ -16,21 +17,38 @@
           "path": "model.int8.onnx",
           "size": 239233841,
           "sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51",
-          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/model.int8.onnx?download=true"
+          "sources": [
+            {"label": "Hugging Face", "kind": "official", "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/model.int8.onnx?download=true"},
+            {"label": "Hugging Face verified mirror", "kind": "verified-mirror", "url": "https://hf-mirror.com/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/model.int8.onnx?download=true"}
+          ]
         },
         {
           "path": "tokens.txt",
           "size": 315894,
           "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc",
-          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/tokens.txt?download=true"
+          "sources": [
+            {"label": "Hugging Face", "kind": "official", "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/tokens.txt?download=true"},
+            {"label": "Hugging Face verified mirror", "kind": "verified-mirror", "url": "https://hf-mirror.com/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/tokens.txt?download=true"}
+          ]
         },
         {
           "path": "LICENSE",
           "size": 71,
           "sha256": "221c6df10b0931a5629adad671ea48fb7747e034c414b6d2bfa275bc3dd4ea17",
-          "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/LICENSE?download=true"
+          "sources": [
+            {"label": "Hugging Face", "kind": "official", "url": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/LICENSE?download=true"},
+            {"label": "Hugging Face verified mirror", "kind": "verified-mirror", "url": "https://hf-mirror.com/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/2365baeacb507f821a0c8120fcee3d484dba7a07/LICENSE?download=true"}
+          ]
         }
       ],
+      "downloadBundles": [{
+        "path": "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2",
+        "size": 163002883,
+        "sha256": "7d1efa2138a65b0b488df37f8b89e3d91a60676e416f515b952358d83dfd347e",
+        "archive": "tar.bz2",
+        "extractRoot": "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17",
+        "sources": [{"label": "sherpa-onnx official GitHub release", "kind": "official", "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2024-07-17.tar.bz2"}]
+      }],
       "requiredRamMiB": 700,
       "recommendedRamMiB": 1400,
       "cantonese": "upstream-verified",
@@ -45,6 +63,7 @@
       "id": "whisper-base-multilingual-q5-1",
       "displayName": "Whisper Base Multilingual Timestamp ASR",
       "role": ["SRT_ASR"],
+      "qualityProfiles": {"SRT_ASR": ["Fast"]},
       "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
       "platform": ["windows-x64"],
       "backend": "whisper.cpp",
@@ -54,11 +73,70 @@
           "path": "ggml-base-q5_1.bin",
           "size": 59707625,
           "sha256": "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898",
-          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q5_1.bin?download=true"
+          "sources": [
+            {"label": "whisper.cpp Hugging Face", "kind": "official", "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q5_1.bin?download=true"},
+            {"label": "Hugging Face verified mirror", "kind": "verified-mirror", "url": "https://hf-mirror.com/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q5_1.bin?download=true"}
+          ]
         }
       ],
       "requiredRamMiB": 512,
       "recommendedRamMiB": 1024,
+      "cantonese": "multilingual Whisper Chinese decoder; real Cantonese QA required",
+      "hongKongCantonese": "not-product-benchmarked",
+      "streaming": "bounded-offline-chunks",
+      "timestamps": "native whisper.cpp segment timestamps",
+      "runtime": {"name": "whisper.cpp", "minimumVersion": "1.9.3"},
+      "license": {"model": "MIT", "reference": "https://github.com/ggml-org/whisper.cpp/blob/v1.9.3/LICENSE"},
+      "enabled": true
+    },
+    {
+      "id": "whisper-small-multilingual-q5-1",
+      "displayName": "Balanced Cantonese Timestamp ASR",
+      "role": ["TXT_ASR", "SRT_ASR"],
+      "qualityProfiles": {"TXT_ASR": ["Balanced"], "SRT_ASR": ["Balanced"]},
+      "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+      "platform": ["windows-x64"],
+      "backend": "whisper.cpp",
+      "architecture": "Whisper Small Multilingual GGML Q5_1",
+      "files": [{
+        "path": "ggml-small-q5_1.bin",
+        "size": 190085487,
+        "sha256": "ae85e4a935d7a567bd102fe55afc16bb595bdb618e11b2fc7591bc08120411bb",
+        "sources": [
+          {"label": "whisper.cpp Hugging Face", "kind": "official", "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-small-q5_1.bin?download=true"},
+          {"label": "Hugging Face verified mirror", "kind": "verified-mirror", "url": "https://hf-mirror.com/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-small-q5_1.bin?download=true"}
+        ]
+      }],
+      "requiredRamMiB": 900,
+      "recommendedRamMiB": 2048,
+      "cantonese": "multilingual Whisper Chinese decoder; real Cantonese QA required",
+      "hongKongCantonese": "not-product-benchmarked",
+      "streaming": "bounded-offline-chunks",
+      "timestamps": "native whisper.cpp segment timestamps",
+      "runtime": {"name": "whisper.cpp", "minimumVersion": "1.9.3"},
+      "license": {"model": "MIT", "reference": "https://github.com/ggml-org/whisper.cpp/blob/v1.9.3/LICENSE"},
+      "enabled": true
+    },
+    {
+      "id": "whisper-large-v3-turbo-q5-0",
+      "displayName": "High Accuracy Cantonese Timestamp ASR",
+      "role": ["TXT_ASR", "SRT_ASR"],
+      "qualityProfiles": {"TXT_ASR": ["High Accuracy"], "SRT_ASR": ["High Accuracy"]},
+      "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+      "platform": ["windows-x64"],
+      "backend": "whisper.cpp",
+      "architecture": "Whisper Large-v3-Turbo GGML Q5_0",
+      "files": [{
+        "path": "ggml-large-v3-turbo-q5_0.bin",
+        "size": 574041195,
+        "sha256": "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
+        "sources": [
+          {"label": "whisper.cpp Hugging Face", "kind": "official", "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo-q5_0.bin?download=true"},
+          {"label": "Hugging Face verified mirror", "kind": "verified-mirror", "url": "https://hf-mirror.com/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo-q5_0.bin?download=true"}
+        ]
+      }],
+      "requiredRamMiB": 1600,
+      "recommendedRamMiB": 4096,
       "cantonese": "multilingual Whisper Chinese decoder; real Cantonese QA required",
       "hongKongCantonese": "not-product-benchmarked",
       "streaming": "bounded-offline-chunks",
@@ -80,13 +158,19 @@
           "path": "Qwen3-0.6B-Q4_K_M.gguf",
           "size": 396704416,
           "sha256": "b0638f08417a2d3c8652760462eb5407c6e30173cf9608ad0820757a281eea0e",
-          "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/1208e45d782fe18602c5eaf10e5758d5b0f24c03/Qwen3-0.6B-Q4_K_M.gguf?download=true"
+          "sources": [
+            {"label": "Qwen Hugging Face", "kind": "official", "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/1208e45d782fe18602c5eaf10e5758d5b0f24c03/Qwen3-0.6B-Q4_K_M.gguf?download=true"},
+            {"label": "Hugging Face verified mirror", "kind": "verified-mirror", "url": "https://hf-mirror.com/Qwen/Qwen3-0.6B-GGUF/resolve/1208e45d782fe18602c5eaf10e5758d5b0f24c03/Qwen3-0.6B-Q4_K_M.gguf?download=true"}
+          ]
         },
         {
           "path": "LICENSE",
           "size": 11544,
           "sha256": "5de36594c10839788a8c589443a8ef9d8b8d17c65a1b5807206ae037fc36c6bd",
-          "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/1208e45d782fe18602c5eaf10e5758d5b0f24c03/LICENSE?download=true"
+          "sources": [
+            {"label": "Qwen Hugging Face", "kind": "official", "url": "https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/1208e45d782fe18602c5eaf10e5758d5b0f24c03/LICENSE?download=true"},
+            {"label": "ModelScope official Qwen mirror", "kind": "official", "url": "https://modelscope.cn/models/Qwen/Qwen3-0.6B-GGUF/resolve/master/LICENSE"}
+          ]
         }
       ],
       "requiredRamMiB": 1400,
@@ -111,7 +195,10 @@
         "path": "silero_vad.onnx",
         "size": 643854,
         "sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6",
-        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
+        "sources": [
+          {"label": "sherpa-onnx official GitHub release", "kind": "official", "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"},
+          {"label": "GitHub verified mirror", "kind": "verified-mirror", "url": "https://ghproxy.net/https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"}
+        ]
       }],
       "requiredRamMiB": 32,
       "recommendedRamMiB": 64,

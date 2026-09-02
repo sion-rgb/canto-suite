@@ -17,7 +17,29 @@ for model in catalog["models"]:
         assert item["size"] > 0
         assert len(item["sha256"]) == 64
         int(item["sha256"], 16)
-        parsed = urllib.parse.urlparse(item["url"])
-        assert parsed.scheme == "https"
+        assert len(item["sources"]) >= 2
+        for source in item["sources"]:
+            parsed = urllib.parse.urlparse(source["url"])
+            assert parsed.scheme == "https"
         assert pathlib.PurePosixPath(item["path"]).name == item["path"]
+    for bundle in model.get("downloadBundles", []):
+        assert bundle["size"] > 0
+        assert len(bundle["sha256"]) == 64
+        int(bundle["sha256"], 16)
+        assert bundle["archive"] in {"tar.bz2", "zip"}
+        assert bundle["sources"]
+        for source in bundle["sources"]:
+            assert urllib.parse.urlparse(source["url"]).scheme == "https"
+
+for role in ("TXT_ASR", "SRT_ASR"):
+    mapped = {}
+    for profile in ("Fast", "Balanced", "High Accuracy"):
+        matches = [model["id"] for model in catalog["models"]
+                   if model["enabled"] and "windows-x64" in model["platform"]
+                   and role in model["role"]
+                   and profile in model.get("qualityProfiles", {}).get(role, [])]
+        assert len(matches) == 1, (role, profile, matches)
+        mapped[profile] = matches[0]
+    assert len(set(mapped.values())) == 3, (role, mapped)
+assert "base" not in mapped["High Accuracy"].lower()
 print(f"catalog ok: {len(ids)} models")

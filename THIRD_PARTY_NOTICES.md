@@ -10,6 +10,7 @@ Canto Suite ships or downloads the following third-party components. Source/runt
 | sherpa-onnx C API | `1.13.6` | `third_party/sherpa-onnx/licenses/sherpa-onnx-LICENSE` | SenseVoice ASR adapter |
 | ONNX Runtime | `1.27.1` | `third_party/sherpa-onnx/licenses/onnxruntime-LICENSE` | SenseVoice inference |
 | whisper.cpp | `1.9.3` | `third_party/whisper.cpp/LICENSE` | Windows timestamped SRT ASR |
+| OpenCC dictionaries | `26753884f1984add422f3b0249ccee8613deaff6` | Apache-2.0; `shared/opencc/LICENSE` | Deterministic Simplified-to-Hong-Kong-Traditional conversion |
 | llama.cpp | `b10516` (`b95502ba9aa0eb73a2f4fc8878d7fbe6a847a0b9`) | `third_party/llama.cpp/LICENSE` | Android local LLM runtime |
 | Qwen3 0.6B GGUF | revision `1208e45d782fe18602c5eaf10e5758d5b0f24c03` | Apache-2.0; downloaded model `LICENSE` | Android local meeting extraction |
 | AndroidX / Kotlin / Gradle | pinned by `apps/mobile/android` | Upstream notices in dependency distributions | Android build/runtime |

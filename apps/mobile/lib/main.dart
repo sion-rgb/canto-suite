@@ -86,6 +86,8 @@ class _QualitySetupState extends State<QualitySetup> {
   bool downloading = false;
   double progress = 0;
   String? installError;
+  String? installTechnicalDetails;
+  String downloadSource = '';
 
   @override
   void initState() {
@@ -112,6 +114,8 @@ class _QualitySetupState extends State<QualitySetup> {
     setState(() {
       downloading = true;
       installError = null;
+      installTechnicalDetails = null;
+      downloadSource = '';
     });
     final client = http.Client();
     try {
@@ -125,8 +129,10 @@ class _QualitySetupState extends State<QualitySetup> {
       final allBytes = asrBytes + llmBytes;
       await installer.install(
           senseVoiceModelId, senseVoiceModelVersion, senseVoiceModelFiles,
-          onProgress: (received, total) {
+          bundles: senseVoiceModelBundles, onProgress: (received, total) {
         if (mounted) setState(() => progress = received / allBytes);
+      }, onSourceChanged: (source) {
+        if (mounted) setState(() => downloadSource = source);
       });
       await installer.install(
           meetingLlmModelId, meetingLlmModelVersion, meetingLlmModelFiles,
@@ -134,6 +140,8 @@ class _QualitySetupState extends State<QualitySetup> {
         if (mounted) {
           setState(() => progress = (asrBytes + received) / allBytes);
         }
+      }, onSourceChanged: (source) {
+        if (mounted) setState(() => downloadSource = source);
       });
       final modelPath =
           p.join(root.path, senseVoiceModelId, senseVoiceModelVersion);
@@ -152,7 +160,12 @@ class _QualitySetupState extends State<QualitySetup> {
     } catch (error) {
       if (mounted) {
         setState(() {
-          installError = error.toString();
+          installError = error is ModelInstallException
+              ? error.userMessage
+              : '模型安裝未完成。請檢查網絡及可用儲存空間後重試。';
+          installTechnicalDetails = error is ModelInstallException
+              ? error.technicalDetails
+              : error.toString();
           downloading = false;
         });
       }
@@ -204,10 +217,9 @@ class _QualitySetupState extends State<QualitySetup> {
             DropdownButtonFormField<String>(
               initialValue: outputScript,
               decoration: const InputDecoration(
-                  labelText: '輸出字體', border: OutlineInputBorder()),
+                  labelText: '輸出中文格式', border: OutlineInputBorder()),
               items: const [
-                DropdownMenuItem(
-                    value: 'traditional', child: Text('繁體中文（香港，預設）')),
+                DropdownMenuItem(value: 'traditional', child: Text('香港繁體（預設）')),
                 DropdownMenuItem(value: 'simplified', child: Text('簡體中文')),
               ],
               onChanged: downloading
@@ -228,12 +240,28 @@ class _QualitySetupState extends State<QualitySetup> {
             if (downloading) ...[
               const SizedBox(height: 10),
               LinearProgressIndicator(value: progress),
+              if (downloadSource.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text('下載來源：$downloadSource',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall),
+              ],
             ],
             if (installError != null) ...[
               const SizedBox(height: 10),
-              Text('模型安裝失敗：$installError',
+              Text(installError!,
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              if (installTechnicalDetails != null)
+                ExpansionTile(
+                  title: const Text('進階資料'),
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: const EdgeInsets.only(bottom: 8),
+                  children: [
+                    SelectableText(installTechnicalDetails!,
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
             ],
             const SizedBox(height: 14),
           ]),
@@ -291,7 +319,7 @@ class _OutputSettingsScreenState extends State<OutputSettingsScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('輸出設定')),
         body: ListView(padding: const EdgeInsets.all(20), children: [
-          Text('中文輸出字體',
+          Text('輸出中文格式',
               style: Theme.of(context)
                   .textTheme
                   .titleLarge
@@ -305,7 +333,7 @@ class _OutputSettingsScreenState extends State<OutputSettingsScreen> {
             child: const Card(
               child: Column(children: [
                 RadioListTile<String>(
-                    value: 'traditional', title: Text('繁體中文（香港，預設）')),
+                    value: 'traditional', title: Text('香港繁體（預設）')),
                 Divider(height: 1),
                 RadioListTile<String>(value: 'simplified', title: Text('簡體中文')),
               ]),

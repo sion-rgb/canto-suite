@@ -49,6 +49,8 @@ private class MeetingAudioBridge(
     private var eventSink: EventChannel.EventSink? = null
     private var capture: MeetingAudioCapture? = null
     private val decoding = AtomicBoolean(false)
+    private val hongKongConverter = HongKongChineseConverter(activity.assets)
+    private val cantoneseCleaner = CantoneseCleaner(activity.assets)
 
     init {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "hk.canto.canto_meet/audio_control")
@@ -99,12 +101,11 @@ private class MeetingAudioBridge(
     private fun convertChinese(call: MethodCall, result: MethodChannel.Result) {
         val text = call.argument<String>("text") ?: ""
         val simplified = call.argument<Boolean>("simplified") ?: false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val id = if (simplified) "Traditional-Simplified" else "Simplified-Traditional"
-            result.success(Transliterator.getInstance(id).transliterate(text))
-        } else {
-            result.success(text)
-        }
+        val clean = call.argument<Boolean>("clean") ?: false
+        val normalized = if (simplified && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Transliterator.getInstance("Traditional-Simplified").transliterate(text)
+        } else if (simplified) text else hongKongConverter.convert(text)
+        result.success(if (clean) cantoneseCleaner.clean(normalized) else normalized)
     }
 
     private fun start(call: MethodCall, result: MethodChannel.Result) {

@@ -145,6 +145,16 @@ Verify:
 
 Normal UI must not require the user to understand ONNX/GGUF/Q4/INT8/CUDA.
 
+## CORE-AND-010 — Release model download resilience
+
+1. Build/install a fresh ARM64 **release** APK.
+2. Verify the merged release manifest includes `android.permission.INTERNET` and `android.permission.ACCESS_NETWORK_STATE`.
+3. On a normal physical-device network, download and SHA-256 verify all required ASR/LLM models.
+4. Force the primary source to fail DNS/connection and verify two bounded attempts followed by the next source.
+5. Verify a valid same-identity `.part` file resumes after source fallback.
+6. Verify a failed attempt does not destroy an existing verified model.
+7. Verify the main error is concise Traditional Chinese with Retry; raw exceptions appear only under Advanced.
+
 ---
 
 # C. Windows core acceptance
@@ -225,6 +235,15 @@ It must not require:
 
 Required runtime/resources must be packaged correctly.
 
+## CORE-WIN-009 — Model roles, profiles, and management
+
+1. Verify Fast, Balanced, and High Accuracy resolve to three genuinely different SHA-pinned model bundles for both TXT and SRT.
+2. Verify model role is separate from quality profile and TXT/SRT active choices can differ.
+3. Verify the Model Management page shows installed models, active TXT/SRT, revision/size, storage use, and working download/switch/repair-update/delete/redownload actions.
+4. Verify Whisper Base is not mapped or labelled as High Accuracy.
+5. Run real native Cantonese audio through every newly enabled Balanced/High model before describing it as validated.
+6. Do not manually remove Windows App SDK localization folders. Keep a satellite-language restriction only after copied-portable real TXT/SRT tests pass.
+
 ---
 
 # D. Shared quality acceptance
@@ -274,6 +293,17 @@ Inspect the runtime implementation and verify there is no inference path that up
 - transcript
 - summary
 - speaker information
+
+## CORE-SHARED-006 — Clean Cantonese and Hong Kong Traditional
+
+Using `曉譽中層c室.txt` when available, otherwise a committed/sanitized equivalent, verify **乾淨廣東話 + 香港繁體**:
+
+1. Uses the selected script before dictionary/cleanup.
+2. Contains no unintended Simplified fragments such as `后`/`柜` where `後`/`櫃` is intended.
+3. Preserves `我哋 / 佢哋 / 唔 / 冇 / 喺 / 嘅 / 啲 / 咗`.
+4. Conservatively collapses excessive repeated fillers/restarts and produces readable punctuation/spacing.
+5. Applies preferred terminology consistently.
+6. Leaves a deliberately injected semantic ASR error unchanged and makes no claim that deterministic cleanup corrected it.
 
 ---
 

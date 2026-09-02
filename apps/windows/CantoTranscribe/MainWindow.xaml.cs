@@ -11,13 +11,16 @@ public sealed partial class MainWindow : Window
 {
     private static readonly HashSet<string> SupportedExtensions =
         new(StringComparer.OrdinalIgnoreCase) { ".mp4", ".mov", ".mkv", ".mp3", ".m4a", ".aac", ".wav" };
-    private readonly ModelManager _models = new();
-    private readonly ModelManager _srtModels = new("SRT_ASR");
+    private readonly ModelRegistry _modelRegistry = new();
     private readonly JobStore _jobs = new();
     private readonly TranscriptionService _transcription;
     private readonly App.StartupOptions _startup;
     private ModelState? _modelState;
     private ModelState? _srtModelState;
+    private ModelManager? _models;
+    private ModelManager? _srtModels;
+    private bool _modelUiReady;
+    private bool _syncingModelSelection;
     private JobCheckpoint? _resume;
     private string? _selectedPath;
     private string? _completedPath;
@@ -35,11 +38,10 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            var stateTasks = new[] { _models.GetStateAsync(), _srtModels.GetStateAsync() };
-            var states = await Task.WhenAll(stateTasks);
-            _modelState = states[0];
-            _srtModelState = states[1];
-            RenderModelState();
+            await _modelRegistry.InitializeAsync();
+            PopulateModelManagement();
+            await RefreshActiveModelsAsync();
+            _modelUiReady = true;
             if (_startup.MediaPath is not null) SelectSource(_startup.MediaPath);
             _resume = await _jobs.LoadRecoverableAsync();
             if (_resume is not null && _startup.MediaPath is null)
@@ -69,33 +71,38 @@ public sealed partial class MainWindow : Window
         if (_modelState is null) return;
         if (_modelState.Installed)
         {
-            ModelStatusText.Text = $"已完整驗證 · 建議「{_modelState.RecommendedProfile}」 · {_modelState.CpuThreads} 執行緒 · {_modelState.TotalRamMiB / 1024d:0.0} GiB RAM";
+            ModelStatusText.Text = $"TXT：{_modelState.DisplayName} · 已完整驗證 · {_modelState.TotalBytes / 1024d / 1024d:0} MiB";
             InstallModelButton.Visibility = Visibility.Collapsed;
         }
         else
         {
-            ModelStatusText.Text = $"{_modelState.CpuThreads} 執行緒 · {_modelState.TotalRamMiB / 1024d:0.0} GiB RAM · {_modelState.Gpu} · 建議「{_modelState.RecommendedProfile}」 · 下載 {_modelState.TotalBytes / 1024d / 1024d:0} MiB";
+            ModelStatusText.Text = $"TXT：{_modelState.DisplayName} · 尚未安裝 · 下載 {_modelState.TotalBytes / 1024d / 1024d:0} MiB";
             InstallModelButton.Visibility = Visibility.Visible;
         }
-        FastProfile.IsChecked = _modelState.RecommendedProfile == "快速";
-        BalancedProfile.IsChecked = _modelState.RecommendedProfile == "平衡";
-        HighProfile.IsChecked = _modelState.RecommendedProfile == "高準確度";
         if (_srtModelState?.Installed == true)
         {
-            SrtModelStatusText.Text = "SRT 時間碼模型已完整驗證 · Whisper Base 多語言 Q5_1";
+            SrtModelStatusText.Text = $"SRT：{_srtModelState.DisplayName} · 已完整驗證 · {_srtModelState.TotalBytes / 1024d / 1024d:0} MiB";
             InstallSrtModelButton.Visibility = Visibility.Collapsed;
         }
         else
         {
             var size = (_srtModelState?.TotalBytes ?? 0) / 1024d / 1024d;
-            SrtModelStatusText.Text = $"SRT 需另裝時間碼模型 · 下載 {size:0} MiB";
+            SrtModelStatusText.Text = $"SRT：{_srtModelState?.DisplayName} · 尚未安裝 · 下載 {size:0} MiB";
             InstallSrtModelButton.Visibility = Visibility.Visible;
         }
+        _syncingModelSelection = true;
+        FastProfile.IsChecked = _modelRegistry.QualityProfile == "Fast";
+        BalancedProfile.IsChecked = _modelRegistry.QualityProfile == "Balanced";
+        HighProfile.IsChecked = _modelRegistry.QualityProfile == "High Accuracy";
+        ActiveTxtModelBox.SelectedItem = _modelRegistry.Models.FirstOrDefault(model => model.Id == _modelRegistry.ActiveTxtModelId);
+        ActiveSrtModelBox.SelectedItem = _modelRegistry.Models.FirstOrDefault(model => model.Id == _modelRegistry.ActiveSrtModelId);
+        _syncingModelSelection = false;
         UpdateStartEnabled();
     }
 
     private async void InstallSrtModel_Click(object sender, RoutedEventArgs e)
     {
+        if (_srtModels is null) return;
         InstallSrtModelButton.IsEnabled = false;
         ModelProgress.Visibility = Visibility.Visible;
         _cancellation = new CancellationTokenSource();
@@ -103,12 +110,13 @@ public sealed partial class MainWindow : Window
         {
             ModelProgress.Maximum = value.TotalBytes;
             ModelProgress.Value = value.ReceivedBytes;
-            SrtModelStatusText.Text = $"正在下載同驗證 SRT 模型 · {value.ReceivedBytes * 100 / Math.Max(1, value.TotalBytes)}%";
+            SrtModelStatusText.Text = $"正在下載同驗證 SRT 模型 · {value.ReceivedBytes * 100 / Math.Max(1, value.TotalBytes)}% · {value.CurrentSource}";
         });
         try
         {
             _srtModelState = await _srtModels.InstallAsync(progress, _cancellation.Token);
             RenderModelState();
+            await RenderModelManagementAsync();
         }
         catch (OperationCanceledException) { SrtModelStatusText.Text = "SRT 模型下載已暫停；再次按下載會續傳。"; }
         catch (Exception error) { await ShowErrorAsync(error.Message); }
@@ -124,6 +132,7 @@ public sealed partial class MainWindow : Window
 
     private async void InstallModel_Click(object sender, RoutedEventArgs e)
     {
+        if (_models is null) return;
         InstallModelButton.IsEnabled = false;
         ModelProgress.Visibility = Visibility.Visible;
         _cancellation = new CancellationTokenSource();
@@ -131,12 +140,13 @@ public sealed partial class MainWindow : Window
         {
             ModelProgress.Maximum = value.TotalBytes;
             ModelProgress.Value = value.ReceivedBytes;
-            ModelStatusText.Text = $"正在下載同驗證 · {value.ReceivedBytes * 100 / Math.Max(1, value.TotalBytes)}%";
+            ModelStatusText.Text = $"正在下載同驗證 · {value.ReceivedBytes * 100 / Math.Max(1, value.TotalBytes)}% · {value.CurrentSource}";
         });
         try
         {
             _modelState = await _models.InstallAsync(progress, _cancellation.Token);
             RenderModelState();
+            await RenderModelManagementAsync();
         }
         catch (OperationCanceledException) { ModelStatusText.Text = "下載已暫停；再次按下載會續傳。"; }
         catch (Exception error) { await ShowErrorAsync(error.Message); }
@@ -148,6 +158,152 @@ public sealed partial class MainWindow : Window
             ModelProgress.Visibility = Visibility.Collapsed;
             UpdateStartEnabled();
         }
+    }
+
+    private void PopulateModelManagement()
+    {
+        ActiveTxtModelBox.ItemsSource = _modelRegistry.Models
+            .Where(model => model.Roles.Contains("TXT_ASR")).ToList();
+        ActiveSrtModelBox.ItemsSource = _modelRegistry.Models
+            .Where(model => model.Roles.Contains("SRT_ASR")).ToList();
+        ManagedModelBox.ItemsSource = _modelRegistry.Models.ToList();
+        ManagedModelBox.SelectedIndex = 0;
+    }
+
+    private async Task RefreshActiveModelsAsync()
+    {
+        _models = _modelRegistry.ActiveManager("TXT_ASR");
+        _srtModels = _modelRegistry.ActiveManager("SRT_ASR");
+        var states = await Task.WhenAll(_models.GetStateAsync(), _srtModels.GetStateAsync());
+        _modelState = states[0];
+        _srtModelState = states[1];
+        RenderModelState();
+        await RenderModelManagementAsync();
+    }
+
+    private async Task RenderModelManagementAsync()
+    {
+        var lines = new List<string>();
+        foreach (var model in _modelRegistry.Models)
+        {
+            var state = await _modelRegistry.Manager(model).GetStateAsync();
+            var roles = string.Join(" / ", model.Roles.Where(role => role is "TXT_ASR" or "SRT_ASR")
+                .Select(role => role == "TXT_ASR" ? "TXT" : "SRT"));
+            var profiles = model.QualityProfiles is null ? "自訂" : string.Join(" / ",
+                model.QualityProfiles.Values.SelectMany(value => value).Distinct());
+            lines.Add($"{(state.Installed ? "✓ 已安裝" : "○ 未安裝")} · {model.DisplayName} · {roles} · {profiles} · v{model.Revision[..Math.Min(12, model.Revision.Length)]} · {state.TotalBytes / 1024d / 1024d:0} MiB");
+        }
+        InstalledModelsText.Text = string.Join(Environment.NewLine, lines);
+        ModelStorageText.Text = $"模型儲存空間：{_modelRegistry.StorageBytes() / 1024d / 1024d:0} MiB";
+    }
+
+    private async void QualityProfile_Checked(object sender, RoutedEventArgs e)
+    {
+        if (!_modelUiReady || _syncingModelSelection) return;
+        var profile = ReferenceEquals(sender, FastProfile) ? "Fast"
+            : ReferenceEquals(sender, HighProfile) ? "High Accuracy" : "Balanced";
+        try
+        {
+            await _modelRegistry.SelectProfileAsync(profile);
+            await RefreshActiveModelsAsync();
+        }
+        catch (Exception error) { await ShowErrorAsync(error.Message); }
+    }
+
+    private void ToggleModelManagement_Click(object sender, RoutedEventArgs e) =>
+        ModelManagementPanel.Visibility = ModelManagementPanel.Visibility == Visibility.Visible
+            ? Visibility.Collapsed : Visibility.Visible;
+
+    private async void ActiveTxtModel_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_modelUiReady || _syncingModelSelection || ActiveTxtModelBox.SelectedItem is not CatalogModel model) return;
+        await _modelRegistry.SetActiveAsync("TXT_ASR", model.Id);
+        await RefreshActiveModelsAsync();
+    }
+
+    private async void ActiveSrtModel_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_modelUiReady || _syncingModelSelection || ActiveSrtModelBox.SelectedItem is not CatalogModel model) return;
+        await _modelRegistry.SetActiveAsync("SRT_ASR", model.Id);
+        await RefreshActiveModelsAsync();
+    }
+
+    private CatalogModel? ManagedModel => ManagedModelBox.SelectedItem as CatalogModel;
+
+    private async void ManageDownload_Click(object sender, RoutedEventArgs e) =>
+        await InstallManagedModelAsync(redownload: false);
+
+    private async void ManageRepair_Click(object sender, RoutedEventArgs e) =>
+        await InstallManagedModelAsync(redownload: false);
+
+    private async void ManageRedownload_Click(object sender, RoutedEventArgs e) =>
+        await InstallManagedModelAsync(redownload: true);
+
+    private async Task InstallManagedModelAsync(bool redownload)
+    {
+        if (ManagedModel is not { } model || _cancellation is not null) return;
+        var manager = _modelRegistry.Manager(model);
+        _cancellation = new CancellationTokenSource();
+        ModelProgress.Visibility = Visibility.Visible;
+        var progress = new Progress<ModelProgress>(value =>
+        {
+            ModelProgress.Maximum = value.TotalBytes;
+            ModelProgress.Value = value.ReceivedBytes;
+            ModelStorageText.Text = $"正在處理 {model.DisplayName} · {value.ReceivedBytes * 100 / Math.Max(1, value.TotalBytes)}% · {value.CurrentSource}";
+        });
+        try
+        {
+            if (redownload) await manager.DeleteAsync();
+            await manager.InstallAsync(progress, _cancellation.Token);
+            await RefreshActiveModelsAsync();
+        }
+        catch (OperationCanceledException) { ModelStorageText.Text = "下載已暫停；再次下載會安全續傳。"; }
+        catch (Exception error) { await ShowErrorAsync(error.Message); }
+        finally
+        {
+            _cancellation.Dispose();
+            _cancellation = null;
+            ModelProgress.Visibility = Visibility.Collapsed;
+            UpdateStartEnabled();
+        }
+    }
+
+    private async void ManageSetTxt_Click(object sender, RoutedEventArgs e)
+    {
+        if (ManagedModel is not { } model) return;
+        try
+        {
+            await _modelRegistry.SetActiveAsync("TXT_ASR", model.Id);
+            await RefreshActiveModelsAsync();
+        }
+        catch (Exception error) { await ShowErrorAsync(error.Message); }
+    }
+
+    private async void ManageSetSrt_Click(object sender, RoutedEventArgs e)
+    {
+        if (ManagedModel is not { } model) return;
+        try
+        {
+            await _modelRegistry.SetActiveAsync("SRT_ASR", model.Id);
+            await RefreshActiveModelsAsync();
+        }
+        catch (Exception error) { await ShowErrorAsync(error.Message); }
+    }
+
+    private async void ManageDelete_Click(object sender, RoutedEventArgs e)
+    {
+        if (ManagedModel is not { } model) return;
+        var dialog = new ContentDialog
+        {
+            Title = "刪除模型？",
+            Content = $"會刪除 {model.DisplayName}；之後可以重新下載。",
+            PrimaryButtonText = "刪除",
+            CloseButtonText = "取消",
+            XamlRoot = Content.XamlRoot
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        await _modelRegistry.Manager(model).DeleteAsync();
+        await RefreshActiveModelsAsync();
     }
 
     private async void ChooseFile_Click(object sender, RoutedEventArgs e)
@@ -202,8 +358,8 @@ public sealed partial class MainWindow : Window
         var activeModel = format == "SRT" ? _srtModelState : _modelState;
         if (activeModel?.Installed != true) return;
         var clean = TextModeBox.SelectedIndex == 1;
-        var outputScript = ScriptBox.SelectedIndex == 1 ? "簡體中文" : "繁體中文";
-        var quality = HighProfile.IsChecked == true ? "高準確度" : FastProfile.IsChecked == true ? "快速" : "平衡";
+        var outputScript = ScriptBox.SelectedIndex == 1 ? "簡體中文" : "香港繁體";
+        var quality = _modelRegistry.QualityProfile;
         var output = System.IO.Path.ChangeExtension(_selectedPath, format.ToLowerInvariant());
         _completedPath = null;
         _cancellation = new CancellationTokenSource();

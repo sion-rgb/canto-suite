@@ -48,6 +48,18 @@ Support Cantonese-English code switching.
 
 Do not silently convert all Cantonese transcripts into Mandarin-style written Chinese.
 
+Output Chinese format:
+
+- **香港繁體（預設）**
+- **簡體中文**
+
+Text modes:
+
+- **原始廣東話** preserves the closest available ASR output after the selected script conversion.
+- **乾淨廣東話** first normalizes to the selected script, then applies licensed deterministic conversion, the controlled terminology dictionary, conservative repeated-filler/restart cleanup, and punctuation/spacing cleanup.
+
+Hong Kong Traditional conversion uses the pinned Apache-2.0 OpenCC `s2hk` dictionary chain. Preserve forms such as `我哋 / 佢哋 / 唔 / 冇 / 喺 / 嘅 / 啲 / 咗`; do not leave unintended Simplified fragments such as `后` or `柜` where `後` or `櫃` is intended. Never guess ambiguous Cantonese homophones. Deterministic cleanup does not claim to repair semantic ASR errors.
+
 ## 2.2 Privacy
 
 User-facing privacy copy should clearly state:
@@ -97,7 +109,9 @@ Each model entry should contain, where relevant:
 - architecture
 - file size
 - SHA-256
-- download URL
+- two or more verified download sources for each downloadable file where available
+- source label/type in ordered priority
+- optional verified archive bundle source
 - RAM requirement
 - recommended RAM
 - VRAM requirement
@@ -112,12 +126,15 @@ Roles may include:
 
 - LIVE_ASR
 - QUALITY_ASR
+- TXT_ASR
 - MEETING_LLM
 - VAD
 - DIARIZATION
 - SRT_ASR
 
 Do not scatter model filenames throughout application code. Resolve active models through a registry.
+
+Download behavior must use HTTPS, bounded retry, automatic fallback, Range resume, `.part` files, pinned byte size/SHA-256, and atomic installation. A partial file may be reused across sources only when the pinned file identity, size, and hash are identical. A failed update must never destroy a working model. Technical network exceptions belong under an Advanced disclosure rather than the main error message.
 
 ---
 
@@ -203,6 +220,18 @@ High does **not** mean every real-time model must be larger.
 ## Windows
 
 No LLM.
+
+Model role and quality profile are separate concepts. The active TXT model and active SRT model are independently selectable.
+
+Validated initial profile mapping:
+
+| Profile | TXT role | SRT role |
+|---|---|---|
+| Fast | SenseVoice INT8 | Whisper Base multilingual Q5_1 |
+| Balanced | Whisper Small multilingual Q5_1 | Whisper Small multilingual Q5_1 |
+| High Accuracy | Whisper Large-v3-Turbo Q5_0 | Whisper Large-v3-Turbo Q5_0 |
+
+All three rows resolve to different revision/SHA-pinned model bundles through the current C++ backend. Qwen3-ASR 0.6B remains disabled until a real native sherpa-onnx adapter and Cantonese benchmark pass. Whisper Base must never be marketed as the highest-accuracy SRT engine.
 
 ### TXT
 
@@ -519,6 +548,12 @@ Show:
 - reprocess
 - delete
 
+## 6.11 Android release model download
+
+The main/release manifest must declare `android.permission.INTERNET` and should declare `android.permission.ACCESS_NETWORK_STATE`; debug/profile-only permission declarations do not count. SenseVoice first attempts the exact SHA-pinned official sherpa-onnx GitHub release archive, then identical pinned Hugging Face files and a hash-verified mirror. The meeting LLM uses multiple identical SHA-pinned sources. DNS/connection failures receive two bounded attempts per source before automatic fallback.
+
+The main UI shows a concise Traditional Chinese failure, a Retry action, the current source, and technical details only under **進階資料**. Existing verified models stay untouched throughout a failed download/update.
+
 ---
 
 # 7. CantoTranscribe — Windows
@@ -692,6 +727,18 @@ Advanced may contain:
 - output directory
 - technical model details
 
+### Model Management
+
+After setup, provide a Model Management page showing:
+
+- installed models
+- active TXT model and active SRT model
+- model version and byte size
+- download, switch, repair/update, delete, and redownload actions
+- total model storage usage
+
+Switching a quality profile selects its mapped TXT/SRT pair; manually switching one role changes the selection to Custom without misrepresenting the quality profile.
+
 ### Processing
 
 Show:
@@ -770,6 +817,8 @@ It must not depend on:
 - source tree
 
 The user must be able to copy the release directory elsewhere and launch it.
+
+WinUI/.NET/Windows App SDK satellite folders such as `fr-FR`, `ga-IE`, `gd-GB`, `it-IT`, `ja-JP`, and `ko-KR` are localization resources, not ASR language models. Do not manually delete them. `SatelliteResourceLanguages=zh-HK;en-US` may be retained only if it materially restricts the copied publish and the copied build still passes real TXT/SRT tests; otherwise retain the complete generated localization set.
 
 ## Android
 
