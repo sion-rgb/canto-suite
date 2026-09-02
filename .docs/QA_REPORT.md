@@ -90,3 +90,6 @@ OpenCC dictionary revision: `26753884f1984add422f3b0249ccee8613deaff6`, Apache-2
 - Verified implementation commit: `4be05ab5778bb4abee63011f0b697d6291842d07`.
 - Remote: `https://github.com/sion-rgb/canto-suite` (private).
 - Verified implementation and final QA metadata are pushed to `origin/master`.
+- Device-test pre-release: `v0.1.0-rc2`, containing the Android download fallback, Windows model-management/profile, and Hong Kong Traditional cleanup changes documented above.
+- RC2 Android asset: `CantoMeet-arm64-release.apk`, SHA-256 `4259073828cfe16a3cbda4d3e6317f76089af0695065944dd3e8f0300ee3934e`.
+- RC2 Windows asset: `CantoTranscribe-Windows-x64-v0.1.0-rc2.zip`, SHA-256 `ab0019f23516f03c8e2a9d7e88f179d86055543605c098217a04c99fb9a63573`.
