@@ -7,10 +7,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import 'meeting_store.dart';
+import 'pcm_bytes.dart';
 
 class SegmentedRecorder {
   SegmentedRecorder(this._store,
-      {this.segmentDuration = const Duration(minutes: 5)});
+      {this.segmentDuration = const Duration(seconds: 30)});
   final MeetingStore _store;
   final Duration segmentDuration;
   final AudioRecorder _permissionRecorder = AudioRecorder();
@@ -51,8 +52,7 @@ class SegmentedRecorder {
       case 'pcm':
         final data = event['data'];
         if (data is Uint8List && data.lengthInBytes.isEven) {
-          _pcm.add(Int16List.view(
-              data.buffer, data.offsetInBytes, data.lengthInBytes ~/ 2));
+          _pcm.add(pcm16LittleEndianView(data));
         }
         break;
       case 'segment':

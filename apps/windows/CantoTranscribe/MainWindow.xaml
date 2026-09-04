@@ -26,9 +26,9 @@
           <TextBlock Text="模型管理" FontSize="20" FontWeight="SemiBold"/>
           <TextBlock Text="模型角色同品質設定分開管理；你可以為 TXT、SRT 各自選擇已驗證模型。" TextWrapping="Wrap" Margin="0,4,0,12"/>
           <TextBlock Text="目前 TXT 模型" FontWeight="SemiBold"/>
-          <ComboBox x:Name="ActiveTxtModelBox" DisplayMemberPath="DisplayName" Margin="0,4,0,10" SelectionChanged="ActiveTxtModel_SelectionChanged"/>
+          <ComboBox x:Name="ActiveTxtModelBox" DisplayMemberPath="TxtDisplayName" Margin="0,4,0,10" SelectionChanged="ActiveTxtModel_SelectionChanged"/>
           <TextBlock Text="目前 SRT 模型" FontWeight="SemiBold"/>
-          <ComboBox x:Name="ActiveSrtModelBox" DisplayMemberPath="DisplayName" Margin="0,4,0,10" SelectionChanged="ActiveSrtModel_SelectionChanged"/>
+          <ComboBox x:Name="ActiveSrtModelBox" DisplayMemberPath="SrtDisplayName" Margin="0,4,0,10" SelectionChanged="ActiveSrtModel_SelectionChanged"/>
           <TextBlock x:Name="ModelStorageText" Text="儲存空間：正在計算…" Margin="0,0,0,10"/>
           <TextBlock x:Name="InstalledModelsText" Text="" TextWrapping="Wrap" Margin="0,0,0,12"/>
           <TextBlock Text="管理單一模型" FontWeight="SemiBold"/>

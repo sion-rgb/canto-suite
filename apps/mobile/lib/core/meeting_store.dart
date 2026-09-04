@@ -256,13 +256,44 @@ class MeetingStore {
     final support = await getApplicationSupportDirectory();
     final recordings = Directory(p.join(support.path, 'meetings'));
     if (!await recordings.exists()) return;
+    final db = await database;
     await for (final entity in recordings.list(recursive: true)) {
       if (entity is File && entity.path.endsWith('.m4a.part')) {
-        final length = await entity.length();
-        if (length > 0) {
-          await entity.rename(entity.path.substring(0, entity.path.length - 5));
+        // MediaMuxer writes the MP4/M4A moov atom only when the segment closes.
+        // A process-killed .part is therefore not a playable recording and must
+        // never be presented as one. Preserve it as explicitly incomplete.
+        var incomplete =
+            '${entity.path.substring(0, entity.path.length - 5)}.incomplete';
+        if (await File(incomplete).exists()) {
+          incomplete = '$incomplete-${DateTime.now().microsecondsSinceEpoch}';
         }
+        await entity.rename(incomplete);
+        continue;
       }
+      if (entity is! File || !entity.path.endsWith('.m4a')) continue;
+      final match =
+          RegExp(r'^segment_(\d+)\.m4a$').firstMatch(p.basename(entity.path));
+      if (match == null) continue;
+      final meetingId = p.basename(entity.parent.path);
+      final meeting = await db.query('meetings',
+          columns: ['id', 'state'],
+          where: 'id=?',
+          whereArgs: [meetingId],
+          limit: 1);
+      if (meeting.isEmpty ||
+          meeting.single['state'] != MeetingState.recording.name) {
+        continue;
+      }
+      final sequence = int.parse(match.group(1)!);
+      final segmentId = '$meetingId-$sequence';
+      final existing = await db.query('segments',
+          columns: ['id'], where: 'id=?', whereArgs: [segmentId], limit: 1);
+      if (existing.isNotEmpty) continue;
+      await commitSegment(
+          id: segmentId,
+          meetingId: meetingId,
+          sequence: sequence,
+          audioPath: entity.path);
     }
   }
 }

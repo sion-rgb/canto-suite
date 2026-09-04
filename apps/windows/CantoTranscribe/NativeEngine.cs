@@ -47,6 +47,10 @@ internal sealed class NativeEngine : IDisposable
     [DllImport("canto_core.dll", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     private static extern int canto_model_load(IntPtr engine, [MarshalAs(UnmanagedType.LPUTF8Str)] string path);
     [DllImport("canto_core.dll", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int canto_engine_set_timestamp_mode(IntPtr engine, byte enabled);
+    [DllImport("canto_core.dll", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int canto_engine_cancel(IntPtr engine);
+    [DllImport("canto_core.dll", CallingConvention = CallingConvention.Cdecl)]
     private static extern unsafe int canto_push_pcm16(IntPtr engine, short* samples, nuint count, byte endOfStream);
     [DllImport("canto_core.dll", CallingConvention = CallingConvention.Cdecl)]
     private static extern int canto_poll_result(IntPtr engine, ref NativeResult result);
@@ -55,11 +59,13 @@ internal sealed class NativeEngine : IDisposable
     [DllImport("canto_core.dll", CallingConvention = CallingConvention.Cdecl)]
     private static extern int canto_engine_get_capabilities(IntPtr engine, ref Capabilities capabilities);
     [DllImport("canto_core.dll", CallingConvention = CallingConvention.Cdecl)]
+    private static extern long canto_engine_last_inference_ms(IntPtr engine);
+    [DllImport("canto_core.dll", CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr canto_status_message(int status);
 
     private IntPtr _engine;
 
-    public NativeEngine(string modelPath)
+    public NativeEngine(string modelPath, bool timestampMode)
     {
         var config = new EngineConfig
         {
@@ -67,8 +73,17 @@ internal sealed class NativeEngine : IDisposable
             RingCapacitySamples = 16_000 * 30, ResultQueueCapacity = 128, ChunkSamples = 16_000 * 10,
         };
         Check(canto_engine_create(ref config, out _engine));
-        try { Check(canto_model_load(_engine, modelPath)); }
+        try
+        {
+            Check(canto_engine_set_timestamp_mode(_engine, timestampMode ? (byte)1 : (byte)0));
+            Check(canto_model_load(_engine, modelPath));
+        }
         catch { Dispose(); throw; }
+    }
+
+    public void RequestCancel()
+    {
+        if (_engine != IntPtr.Zero) _ = canto_engine_cancel(_engine);
     }
 
     public Capabilities GetCapabilities()
@@ -78,10 +93,16 @@ internal sealed class NativeEngine : IDisposable
         return capabilities;
     }
 
-    public unsafe int Push(short[] samples, bool endOfStream)
+    public long LastInferenceMs => _engine == IntPtr.Zero
+        ? -1
+        : canto_engine_last_inference_ms(_engine);
+
+    public unsafe int Push(short[] samples, int count, bool endOfStream)
     {
+        if (count < 0 || count > samples.Length) throw new ArgumentOutOfRangeException(nameof(count));
         fixed (short* pointer = samples)
-            return canto_push_pcm16(_engine, samples.Length == 0 ? null : pointer, (nuint)samples.Length, endOfStream ? (byte)1 : (byte)0);
+            return canto_push_pcm16(_engine, count == 0 ? null : pointer, (nuint)count,
+                endOfStream ? (byte)1 : (byte)0);
     }
 
     public NativeTranscript? Poll()
@@ -109,8 +130,15 @@ internal sealed class NativeEngine : IDisposable
 
     public void Dispose()
     {
-        if (_engine == IntPtr.Zero) return;
-        canto_engine_destroy(_engine);
-        _engine = IntPtr.Zero;
+        var engine = Interlocked.Exchange(ref _engine, IntPtr.Zero);
+        if (engine != IntPtr.Zero) canto_engine_destroy(engine);
+    }
+
+    public Task DisposeAsync()
+    {
+        var engine = Interlocked.Exchange(ref _engine, IntPtr.Zero);
+        return engine == IntPtr.Zero
+            ? Task.CompletedTask
+            : Task.Run(() => canto_engine_destroy(engine));
     }
 }

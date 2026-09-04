@@ -199,10 +199,13 @@ struct canto_engine {
   bool stopping{false};
   bool loaded{false};
   bool eos_pending{false};
+  std::atomic<bool> abort_requested{false};
+  std::atomic<int64_t> last_inference_ms{-1};
   uint64_t samples_processed{0};
   uint64_t generation{0};
   bool test_backend{false};
   bool supports_timestamps{false};
+  bool timestamp_mode{true};
   std::string backend{"none"};
 #if defined(CANTO_ENABLE_SHERPA_ONNX)
   std::shared_ptr<SherpaRecognizer> sherpa;
@@ -321,7 +324,8 @@ std::vector<OwnedResult> process_sherpa_chunk(
 std::vector<OwnedResult> process_whisper_chunk(
     const std::shared_ptr<WhisperRecognizer>& recognizer,
     const int16_t* samples, size_t count, bool final_chunk,
-    int64_t start, int64_t end) {
+    int64_t start, int64_t end, bool timestamp_mode,
+    std::atomic<bool>* abort_requested) {
   if (count == 0) {
     return final_chunk
         ? std::vector<OwnedResult>{{CANTO_RESULT_FINAL, start, end, ""}}
@@ -331,16 +335,26 @@ std::vector<OwnedResult> process_whisper_chunk(
   std::transform(samples, samples + count, normalized.begin(),
                  [](int16_t sample) { return static_cast<float>(sample) / 32768.0F; });
   auto params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
-  params.n_threads = static_cast<int>(std::clamp<unsigned int>(
-      std::thread::hardware_concurrency(), 1, 8));
+  // Leave two logical processors available for WinUI, FFmpeg, cancellation,
+  // and the OS. Saturating every processor made lower-core-count PCs appear
+  // frozen even though inference itself was already off the UI thread.
+  const auto hardware_threads = std::max(1U, std::thread::hardware_concurrency());
+  const auto inference_threads = hardware_threads > 2U ? hardware_threads - 2U : 1U;
+  params.n_threads = static_cast<int>(
+      std::clamp<unsigned int>(inference_threads, 1U, 6U));
   params.language = "zh";
   params.translate = false;
   params.no_context = true;
-  params.no_timestamps = false;
-  params.token_timestamps = true;
+  params.no_timestamps = !timestamp_mode;
+  params.token_timestamps = timestamp_mode;
   params.print_progress = false;
   params.print_realtime = false;
   params.print_timestamps = false;
+  params.abort_callback = [](void* data) {
+    return static_cast<std::atomic<bool>*>(data)->load(
+        std::memory_order_relaxed);
+  };
+  params.abort_callback_user_data = abort_requested;
   if (whisper_full(recognizer->handle, params, normalized.data(),
                    static_cast<int>(normalized.size())) != 0) {
     return {{CANTO_RESULT_ERROR, start, end,
@@ -390,6 +404,7 @@ void worker_main(canto_engine* engine) {
                                               engine->config.sample_rate_hz);
     const uint64_t generation = engine->generation;
     const bool test_backend = engine->test_backend;
+    const bool timestamp_mode = engine->timestamp_mode;
 #if defined(CANTO_ENABLE_SHERPA_ONNX)
     auto sherpa = engine->sherpa;
 #endif
@@ -399,6 +414,7 @@ void worker_main(canto_engine* engine) {
     lock.unlock();
     std::vector<OwnedResult> results;
     if (count > 0 || final_chunk) {
+      const auto inference_started = std::chrono::steady_clock::now();
       if (test_backend) {
         auto result = process_test_chunk(engine->scratch.data(), count,
                                          final_chunk, start, end);
@@ -407,7 +423,8 @@ void worker_main(canto_engine* engine) {
 #if defined(CANTO_ENABLE_WHISPER_CPP)
       else if (whisper != nullptr) {
         results = process_whisper_chunk(whisper, engine->scratch.data(), count,
-                                        final_chunk, start, end);
+                                        final_chunk, start, end, timestamp_mode,
+                                        &engine->abort_requested);
       }
 #endif
 #if defined(CANTO_ENABLE_SHERPA_ONNX)
@@ -417,6 +434,10 @@ void worker_main(canto_engine* engine) {
                                        final_chunk, start, end);
       }
 #endif
+      engine->last_inference_ms.store(
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              std::chrono::steady_clock::now() - inference_started).count(),
+          std::memory_order_relaxed);
     }
     lock.lock();
     if (generation == engine->generation) {
@@ -448,6 +469,7 @@ canto_status canto_engine_create(const canto_engine_config* config, canto_engine
 
 void canto_engine_destroy(canto_engine* engine) {
   if (engine == nullptr) return;
+  engine->abort_requested.store(true, std::memory_order_relaxed);
   {
     std::lock_guard lock(engine->mutex);
     engine->stopping = true;
@@ -462,6 +484,7 @@ canto_status canto_model_load(canto_engine* engine, const char* model_path) {
   {
     std::lock_guard lock(engine->mutex);
     if (engine->loaded) return CANTO_INVALID_STATE;
+    engine->abort_requested.store(false, std::memory_order_relaxed);
   }
 #if defined(CANTO_ENABLE_TEST_BACKEND)
   if (std::strcmp(model_path, "test://deterministic") == 0) {
@@ -543,8 +566,8 @@ canto_status canto_model_load(canto_engine* engine, const char* model_path) {
       config.model_config.whisper.decoder = decoder_string.c_str();
       config.model_config.whisper.language = "zh";
       config.model_config.whisper.task = "transcribe";
-      config.model_config.whisper.enable_token_timestamps = 1;
-      config.model_config.whisper.enable_segment_timestamps = 1;
+      config.model_config.whisper.enable_token_timestamps = engine->timestamp_mode ? 1 : 0;
+      config.model_config.whisper.enable_segment_timestamps = engine->timestamp_mode ? 1 : 0;
     } else {
       config.model_config.sense_voice.model = model_string.c_str();
       config.model_config.sense_voice.language = "yue";
@@ -590,8 +613,32 @@ canto_status canto_model_unload(canto_engine* engine) {
   engine->ring.clear();
   engine->results.clear();
   engine->eos_pending = false;
+  engine->abort_requested.store(false, std::memory_order_relaxed);
   engine->samples_processed = 0;
   ++engine->generation;
+  return CANTO_OK;
+}
+
+canto_status canto_engine_set_timestamp_mode(canto_engine* engine,
+                                              uint8_t enabled) {
+  if (engine == nullptr) return CANTO_INVALID_ARGUMENT;
+  std::lock_guard lock(engine->mutex);
+  if (engine->loaded) return CANTO_INVALID_STATE;
+  engine->timestamp_mode = enabled != 0;
+  return CANTO_OK;
+}
+
+canto_status canto_engine_cancel(canto_engine* engine) {
+  if (engine == nullptr) return CANTO_INVALID_ARGUMENT;
+  engine->abort_requested.store(true, std::memory_order_relaxed);
+  {
+    std::lock_guard lock(engine->mutex);
+    engine->ring.clear();
+    engine->results.clear();
+    engine->eos_pending = false;
+    ++engine->generation;
+  }
+  engine->wake.notify_one();
   return CANTO_OK;
 }
 
@@ -601,6 +648,7 @@ canto_status canto_engine_reset(canto_engine* engine) {
   engine->ring.clear();
   engine->results.clear();
   engine->eos_pending = false;
+  engine->abort_requested.store(false, std::memory_order_relaxed);
   engine->samples_processed = 0;
   ++engine->generation;
   return CANTO_OK;
@@ -614,6 +662,9 @@ canto_status canto_push_pcm16(canto_engine* engine, const int16_t* samples,
   {
     std::lock_guard lock(engine->mutex);
     if (!engine->loaded) return CANTO_INVALID_STATE;
+    if (engine->abort_requested.load(std::memory_order_relaxed)) {
+      return CANTO_INVALID_STATE;
+    }
     if (!engine->ring.push(samples, sample_count)) return CANTO_QUEUE_FULL;
     if (end_of_stream != 0) engine->eos_pending = true;
   }
@@ -644,6 +695,12 @@ void canto_result_free(canto_result* result) {
   delete[] result->text;
   result->text = nullptr;
   result->text_length = 0;
+}
+
+int64_t canto_engine_last_inference_ms(const canto_engine* engine) {
+  return engine == nullptr
+      ? -1
+      : engine->last_inference_ms.load(std::memory_order_relaxed);
 }
 
 canto_status canto_engine_get_capabilities(const canto_engine* engine,

@@ -42,4 +42,19 @@ for role in ("TXT_ASR", "SRT_ASR"):
         mapped[profile] = matches[0]
     assert len(set(mapped.values())) == 3, (role, mapped)
 assert "base" not in mapped["High Accuracy"].lower()
+
+for profile in ("Fast", "Balanced", "High Accuracy"):
+    selected = {}
+    for role in ("TXT_ASR", "SRT_ASR"):
+        selected[role] = next(model for model in catalog["models"]
+                              if model["enabled"] and "windows-x64" in model["platform"]
+                              and role in model["role"]
+                              and profile in model.get("qualityProfiles", {}).get(role, []))
+    txt = selected["TXT_ASR"]
+    srt = selected["SRT_ASR"]
+    assert "Timestamp" not in txt.get("roleDisplayNames", {}).get("TXT_ASR", txt["displayName"])
+    assert srt.get("roleRuntimeOptions", {}).get("SRT_ASR", {}).get("timestampMode") is True
+    assert txt.get("roleRuntimeOptions", {}).get("TXT_ASR", {}).get("timestampMode") is False
+    if txt["id"] == srt["id"]:
+        assert txt["roleDisplayNames"]["TXT_ASR"] != srt["roleDisplayNames"]["SRT_ASR"]
 print(f"catalog ok: {len(ids)} models")

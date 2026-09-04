@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'meeting_store.dart';
 import 'models.dart';
+import 'pcm_bytes.dart';
 
 class ChineseOutputConverter {
   static const MethodChannel _channel =
@@ -13,8 +14,7 @@ class ChineseOutputConverter {
 
   static Future<String> convert(String text,
           {required bool simplified, bool clean = false}) async =>
-      (await _channel.invokeMethod<String>(
-          'convertChinese',
+      (await _channel.invokeMethod<String>('convertChinese',
           {'text': text, 'simplified': simplified, 'clean': clean})) ??
       text;
 }
@@ -34,11 +34,16 @@ class QualityTranscriber {
     final segments = await store.segments(meetingId);
     await store.setMeetingState(meetingId, MeetingState.transcribing);
     for (var index = 0; index < segments.length; index++) {
-      final text = await _transcribeFile(segments[index].audioPath, modelPath);
-      final formal =
-          await ChineseOutputConverter.convert(text,
-              simplified: simplified, clean: true);
-      await store.saveQualityTranscript(segments[index].id, formal);
+      final existing = segments[index];
+      if (existing.state == 'quality_complete' &&
+          (existing.cleanedText?.trim().isNotEmpty ?? false)) {
+        onProgress?.call(index + 1, segments.length);
+        continue;
+      }
+      final text = await _transcribeFile(existing.audioPath, modelPath);
+      final formal = await ChineseOutputConverter.convert(text,
+          simplified: simplified, clean: true);
+      await store.saveQualityTranscript(existing.id, formal);
       onProgress?.call(index + 1, segments.length);
     }
   }
@@ -55,8 +60,10 @@ class QualityTranscriber {
         if (!finalResult.isCompleted) {
           finalResult.completeError(StateError(result.text));
         }
-      } else if (result.text.trim().isNotEmpty &&
-          result.kind != TranscriptKind.partial) {
+      } else if (result.text.trim().isNotEmpty) {
+        // canto-core uses `partial` for complete, non-overlapping chunks and
+        // marks only the end-of-stream chunk final. Retain every chunk so a
+        // quality pass does not silently lose the beginning of a segment.
         results.add(result.text.trim());
         if (result.kind == TranscriptKind.finalResult &&
             !finalResult.isCompleted) {
@@ -69,8 +76,7 @@ class QualityTranscriber {
       final event = Map<Object?, Object?>.from(raw);
       if (event['type'] == 'decode_pcm' && event['data'] is Uint8List) {
         final bytes = event['data'] as Uint8List;
-        worker.push(Int16List.view(
-            bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes ~/ 2));
+        worker.push(pcm16LittleEndianView(bytes));
       } else if (event['type'] == 'decode_done') {
         worker.push(Int16List(0), endOfStream: true);
         pollTimer = Timer.periodic(

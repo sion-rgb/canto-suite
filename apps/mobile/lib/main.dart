@@ -24,6 +24,16 @@ void main() async {
   runApp(CantoMeetApp(store: store, preferences: preferences));
 }
 
+bool hasInstalledMobileModels(SharedPreferences preferences) {
+  final asrPath = preferences.getString('asr_model_path');
+  final llmPath = preferences.getString('meeting_llm_path');
+  return preferences.getString('quality_profile') != null &&
+      asrPath != null &&
+      Directory(asrPath).existsSync() &&
+      llmPath != null &&
+      File(llmPath).existsSync();
+}
+
 class CantoMeetApp extends StatelessWidget {
   const CantoMeetApp(
       {super.key, required this.store, required this.preferences});
@@ -37,11 +47,7 @@ class CantoMeetApp extends StatelessWidget {
         themeMode: ThemeMode.system,
         theme: _theme(Brightness.light),
         darkTheme: _theme(Brightness.dark),
-        home: preferences.getString('quality_profile') == null ||
-                !File(preferences.getString('asr_model_path') ?? '')
-                    .existsSync() ||
-                !File(preferences.getString('meeting_llm_path') ?? '')
-                    .existsSync()
+        home: !hasInstalledMobileModels(preferences)
             ? QualitySetup(store: store, preferences: preferences)
             : HomeScreen(
                 store: store,
@@ -565,15 +571,16 @@ class _RecordingScreenState extends State<RecordingScreen> {
     }
     if (result.text.trim().isEmpty) return;
     transcriptResults.add(result);
-    if (result.kind != TranscriptKind.partial) {
-      unawaited(widget.store.appendLiveTranscript(
-          widget.meetingId, result.startMs, result.endMs, result.text.trim()));
-    }
+    // The offline native backend emits each completed live chunk as a
+    // `partial` and reserves `finalResult` for the end-of-stream chunk. Each
+    // partial therefore contains real, non-overlapping transcript content and
+    // must be displayed and durably stored instead of being discarded.
+    unawaited(widget.store.appendLiveTranscript(
+        widget.meetingId, result.startMs, result.endMs, result.text.trim()));
     if (mounted) setState(() {});
   }
 
   String get liveTranscript => transcriptResults
-      .where((result) => result.kind != TranscriptKind.partial)
       .map((result) => result.text.trim())
       .where((text) => text.isNotEmpty)
       .join('\n');

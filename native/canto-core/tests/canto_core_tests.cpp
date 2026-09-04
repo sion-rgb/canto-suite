@@ -1,5 +1,6 @@
 #include "canto_core.h"
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cstdlib>
@@ -76,17 +77,28 @@ void test_real_model_if_configured() {
   const char* model = std::getenv("CANTO_TEST_MODEL_DIR");
   const char* wave_path = std::getenv("CANTO_TEST_WAV");
   const char* expected_backend = std::getenv("CANTO_TEST_EXPECTED_BACKEND");
+  const char* timestamp_mode = std::getenv("CANTO_TEST_TIMESTAMP_MODE");
+  const char* cancel_after_ms = std::getenv("CANTO_TEST_CANCEL_AFTER_MS");
   if (model == nullptr || wave_path == nullptr) return;
   const auto wave = read_pcm16_wave(wave_path);
   canto_engine_config config{};
   config.struct_size = sizeof(config);
   config.sample_rate_hz = wave.sample_rate;
-  config.ring_capacity_samples = static_cast<uint32_t>(wave.samples.size());
+  const bool cancellation_test = cancel_after_ms != nullptr;
+  config.ring_capacity_samples = cancellation_test
+      ? wave.sample_rate * 30
+      : static_cast<uint32_t>(wave.samples.size());
   config.result_queue_capacity = 8;
-  config.chunk_samples = static_cast<uint32_t>(wave.samples.size());
+  config.chunk_samples = cancellation_test
+      ? wave.sample_rate * 10
+      : static_cast<uint32_t>(wave.samples.size());
   canto_engine* engine = nullptr;
   std::cerr << "real model: create engine\n";
   assert(canto_engine_create(&config, &engine) == CANTO_OK);
+  if (timestamp_mode != nullptr) {
+    assert(canto_engine_set_timestamp_mode(
+               engine, std::strcmp(timestamp_mode, "0") == 0 ? 0 : 1) == CANTO_OK);
+  }
   std::cerr << "real model: load model\n";
   assert(canto_model_load(engine, model) == CANTO_OK);
   std::cerr << "real model: inspect capabilities\n";
@@ -101,8 +113,28 @@ void test_real_model_if_configured() {
     assert(capabilities.supports_timestamps == 1);
   }
   assert(capabilities.supports_streaming == 0);
-  std::cerr << "real model: push " << wave.samples.size() << " samples\n";
-  assert(canto_push_pcm16(engine, wave.samples.data(), wave.samples.size(), 1) == CANTO_OK);
+  const size_t pushed_samples = cancellation_test
+      ? std::min<size_t>(wave.samples.size(), config.ring_capacity_samples)
+      : wave.samples.size();
+  std::cerr << "real model: push " << pushed_samples << " samples\n";
+  assert(canto_push_pcm16(engine, wave.samples.data(), pushed_samples, 1) == CANTO_OK);
+  if (cancel_after_ms != nullptr) {
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(std::max(1, std::atoi(cancel_after_ms))));
+    const auto cancel_started = std::chrono::steady_clock::now();
+    assert(canto_engine_cancel(engine) == CANTO_OK);
+    const auto cancel_call_duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - cancel_started);
+    assert(cancel_call_duration < std::chrono::milliseconds(500));
+    canto_engine_destroy(engine);
+    const auto cleanup_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - cancel_started);
+    std::cerr << "real model: cancel call ms=" << cancel_call_duration.count()
+              << " cleanup ms=" << cleanup_duration.count() << '\n';
+    assert(cleanup_duration < std::chrono::seconds(20));
+    return;
+  }
   canto_result result{};
   canto_status status = CANTO_NO_RESULT;
   for (int i = 0; i < 600 && status == CANTO_NO_RESULT; ++i) {
@@ -139,7 +171,9 @@ int main() {
   canto_engine* engine = nullptr;
   assert(canto_engine_create(&config, &engine) == CANTO_OK);
   assert(engine != nullptr);
+  assert(canto_engine_set_timestamp_mode(engine, 0) == CANTO_OK);
   assert(canto_model_load(engine, "test://deterministic") == CANTO_OK);
+  assert(canto_engine_set_timestamp_mode(engine, 1) == CANTO_INVALID_STATE);
 
   canto_capabilities capabilities{};
   assert(canto_engine_get_capabilities(engine, &capabilities) == CANTO_OK);
@@ -159,8 +193,13 @@ int main() {
   assert(status == CANTO_OK);
   assert(result.text != nullptr);
   assert(result.text_length > 0);
+  assert(canto_engine_last_inference_ms(engine) >= 0);
   canto_result_free(&result);
 
+  assert(canto_engine_cancel(engine) == CANTO_OK);
+  assert(canto_push_pcm16(engine, speech.data(), speech.size(), 0) == CANTO_INVALID_STATE);
+  assert(canto_engine_reset(engine) == CANTO_OK);
+  assert(canto_push_pcm16(engine, speech.data(), speech.size(), 0) == CANTO_OK);
   assert(canto_engine_reset(engine) == CANTO_OK);
   assert(canto_model_unload(engine) == CANTO_OK);
   assert(canto_push_pcm16(engine, speech.data(), speech.size(), 0) == CANTO_INVALID_STATE);

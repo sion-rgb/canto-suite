@@ -49,6 +49,21 @@ Do not mark Windows complete until this passes.
 
 # B. Android core acceptance
 
+## Android execution levels
+
+The absence of an attached physical Android device does not justify skipping Android runtime QA. Before assigning an Android status, run `adb devices -l`, `emulator -list-avds`, inspect installed `sdkmanager` system images, and confirm `avdmanager` availability. Create and boot a suitable AVD unattended when none exists and the SDK permits it.
+
+Use `scripts/android_emulator_qa.ps1` for the repeatable inventory/create/boot/readiness step. It enables host audio, enforces the current 4 GiB QA memory baseline, may install a supplied APK, and prints ABI/Native Bridge details; interactive acceptance evidence still has to be observed and recorded below.
+
+Record two independent result lines for every Android runtime flow that is exercised:
+
+- `EMULATOR PASS` or the exact emulator failure/blocker, including API level, system-image ABI, APK ABI, and whether Android Native Bridge translation was used.
+- `PHYSICAL DEVICE PASS` or `PHYSICAL DEVICE NOT TESTED`, including the actual device/ABI when available.
+
+If the emulator cannot load the production APK's ABI, provide a QA/debug x86_64 build containing functional `canto_core`, sherpa-onnx, ONNX Runtime, `canto_llm`, and llama.cpp libraries. A stub library does not satisfy functional ASR or LLM acceptance. When the AVD advertises and successfully executes the production ARM64 APK through Android Native Bridge, a separate x86_64 build is not required, but this translated execution must not be described as ARM64 performance validation. An AVD used for the packaged Qwen workflow must have enough RAM to complete without low-memory termination; use at least 4 GiB for the current QA model unless a lower value is actually proven.
+
+Emulator QA may validate fresh install, runtime permission flow, download/resume/hash/atomic install, PCM plumbing, visible transcript behavior, Stop/quality/LLM invocation, persistence, force-stop recovery, and offline operation when each is actually observed. It must not be used as evidence for thermal behavior, battery use, physical microphone acoustics, native ARM64 performance, or multi-hour physical-device soak.
+
 ## CORE-AND-001 — Real microphone pipeline
 
 Fresh install / clean state.
@@ -60,6 +75,8 @@ Flow:
 **PASS only if real microphone speech changes the visible transcript.**
 
 Mocked text does not count.
+
+An AVD launched with explicit host-audio input may earn `EMULATOR PASS` when host microphone speech traverses the real `AudioRecord -> PCM -> FFI -> native ASR` path and changes the visible transcript. Injected PCM can test plumbing but must be labelled separately and does not replace the host-microphone observation.
 
 ## CORE-AND-002 — Meeting persistence
 
@@ -111,7 +128,7 @@ Do not send an entire simulated multi-hour transcript as one giant prompt.
 
 Verify recovery metadata and partial-session recovery.
 
-At minimum test an interrupted/aborted session and relaunch.
+At minimum, record past one durable segment boundary, force-stop before graceful Stop, and relaunch. The completed M4A must remain independently playable and regain any missing database row; an open MediaMuxer tail must be retained as explicitly incomplete and must not be renamed or exposed as playable media.
 
 The architecture must not depend on graceful shutdown to preserve the entire meeting.
 
@@ -154,6 +171,8 @@ Normal UI must not require the user to understand ONNX/GGUF/Q4/INT8/CUDA.
 5. Verify a valid same-identity `.part` file resumes after source fallback.
 6. Verify a failed attempt does not destroy an existing verified model.
 7. Verify the main error is concise Traditional Chinese with Retry; raw exceptions appear only under Advanced.
+
+Run steps 1, 2, 4, 5, 6, and 7 on the emulator whenever possible. A completed emulator download over its normal validated network may be reported as `EMULATOR PASS`; step 3 retains a separate `PHYSICAL DEVICE NOT TESTED` result until an ARM64 device performs it.
 
 ---
 
@@ -212,6 +231,14 @@ Use chunked/streaming processing and persisted progress.
 
 A simulated long-media stress test is acceptable if clearly labelled simulated.
 
+Run at least one real 10+ minute media job (a duration-expanded real Cantonese sample is acceptable when labelled). During processing:
+
+1. Verify the window can be activated, dragged, and clicked.
+2. Verify WinUI remains off the native/FFmpeg worker path.
+3. Verify memory remains bounded and diagnostics advance by chunk without transcript content or source paths.
+4. Verify CPU inference reserves capacity for the UI and operating system.
+5. Click Cancel and verify the UI acknowledges it promptly, FFmpeg stops, resumable progress remains, and native cleanup completes in the background.
+
 ## CORE-WIN-007 — Resume
 
 Start a long job, interrupt it, restart, and verify safe resume from persisted progress when supported by the engine.
@@ -243,6 +270,8 @@ Required runtime/resources must be packaged correctly.
 4. Verify Whisper Base is not mapped or labelled as High Accuracy.
 5. Run real native Cantonese audio through every newly enabled Balanced/High model before describing it as validated.
 6. Do not manually remove Windows App SDK localization folders. Keep a satellite-language restriction only after copied-portable real TXT/SRT tests pass.
+7. Verify every role has an independent UI label and catalog runtime mode. If TXT and SRT intentionally share one physical Whisper bundle, TXT must run with timestamps disabled and SRT with timestamps enabled; this exception must be explicit rather than accidental.
+8. Verify the diagnostics identify the actual model ID, revision, role, and timestamp mode loaded for each job.
 
 ---
 
@@ -298,12 +327,13 @@ Inspect the runtime implementation and verify there is no inference path that up
 
 Using `曉譽中層c室.txt` when available, otherwise a committed/sanitized equivalent, verify **乾淨廣東話 + 香港繁體**:
 
-1. Uses the selected script before dictionary/cleanup.
+1. Uses the selected script before dictionary/cleanup and applies a final HK Traditional conversion after cleanup.
 2. Contains no unintended Simplified fragments such as `后`/`柜` where `後`/`櫃` is intended.
 3. Preserves `我哋 / 佢哋 / 唔 / 冇 / 喺 / 嘅 / 啲 / 咗`.
 4. Conservatively collapses excessive repeated fillers/restarts and produces readable punctuation/spacing.
 5. Applies preferred terminology consistently.
-6. Leaves a deliberately injected semantic ASR error unchanged and makes no claim that deterministic cleanup corrected it.
+6. Applies the same final normalization to TXT text and every SRT cue.
+7. Leaves a deliberately injected semantic ASR error unchanged and makes no claim that deterministic cleanup corrected it.
 
 ---
 

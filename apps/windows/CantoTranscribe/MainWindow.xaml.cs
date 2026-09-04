@@ -71,23 +71,23 @@ public sealed partial class MainWindow : Window
         if (_modelState is null) return;
         if (_modelState.Installed)
         {
-            ModelStatusText.Text = $"TXT：{_modelState.DisplayName} · 已完整驗證 · {_modelState.TotalBytes / 1024d / 1024d:0} MiB";
+            ModelStatusText.Text = $"TXT：{_models?.Model.DisplayNameForRole("TXT_ASR")} · 已完整驗證 · {_modelState.TotalBytes / 1024d / 1024d:0} MiB";
             InstallModelButton.Visibility = Visibility.Collapsed;
         }
         else
         {
-            ModelStatusText.Text = $"TXT：{_modelState.DisplayName} · 尚未安裝 · 下載 {_modelState.TotalBytes / 1024d / 1024d:0} MiB";
+            ModelStatusText.Text = $"TXT：{_models?.Model.DisplayNameForRole("TXT_ASR")} · 尚未安裝 · 下載 {_modelState.TotalBytes / 1024d / 1024d:0} MiB";
             InstallModelButton.Visibility = Visibility.Visible;
         }
         if (_srtModelState?.Installed == true)
         {
-            SrtModelStatusText.Text = $"SRT：{_srtModelState.DisplayName} · 已完整驗證 · {_srtModelState.TotalBytes / 1024d / 1024d:0} MiB";
+            SrtModelStatusText.Text = $"SRT：{_srtModels?.Model.DisplayNameForRole("SRT_ASR")} · 已完整驗證 · {_srtModelState.TotalBytes / 1024d / 1024d:0} MiB";
             InstallSrtModelButton.Visibility = Visibility.Collapsed;
         }
         else
         {
             var size = (_srtModelState?.TotalBytes ?? 0) / 1024d / 1024d;
-            SrtModelStatusText.Text = $"SRT：{_srtModelState?.DisplayName} · 尚未安裝 · 下載 {size:0} MiB";
+            SrtModelStatusText.Text = $"SRT：{_srtModels?.Model.DisplayNameForRole("SRT_ASR")} · 尚未安裝 · 下載 {size:0} MiB";
             InstallSrtModelButton.Visibility = Visibility.Visible;
         }
         _syncingModelSelection = true;
@@ -114,7 +114,8 @@ public sealed partial class MainWindow : Window
         });
         try
         {
-            _srtModelState = await _srtModels.InstallAsync(progress, _cancellation.Token);
+            var token = _cancellation.Token;
+            _srtModelState = await Task.Run(() => _srtModels.InstallAsync(progress, token));
             RenderModelState();
             await RenderModelManagementAsync();
         }
@@ -144,7 +145,8 @@ public sealed partial class MainWindow : Window
         });
         try
         {
-            _modelState = await _models.InstallAsync(progress, _cancellation.Token);
+            var token = _cancellation.Token;
+            _modelState = await Task.Run(() => _models.InstallAsync(progress, token));
             RenderModelState();
             await RenderModelManagementAsync();
         }
@@ -191,10 +193,14 @@ public sealed partial class MainWindow : Window
                 .Select(role => role == "TXT_ASR" ? "TXT" : "SRT"));
             var profiles = model.QualityProfiles is null ? "自訂" : string.Join(" / ",
                 model.QualityProfiles.Values.SelectMany(value => value).Distinct());
-            lines.Add($"{(state.Installed ? "✓ 已安裝" : "○ 未安裝")} · {model.DisplayName} · {roles} · {profiles} · v{model.Revision[..Math.Min(12, model.Revision.Length)]} · {state.TotalBytes / 1024d / 1024d:0} MiB");
+            var roleNames = string.Join(" / ", model.Roles
+                .Where(role => role is "TXT_ASR" or "SRT_ASR")
+                .Select(role => $"{(role == "TXT_ASR" ? "TXT" : "SRT")}：{model.DisplayNameForRole(role)}"));
+            lines.Add($"{(state.Installed ? "✓ 已安裝" : "○ 未安裝")} · {roleNames} · {roles} · {profiles} · v{model.Revision[..Math.Min(12, model.Revision.Length)]} · {state.TotalBytes / 1024d / 1024d:0} MiB");
         }
         InstalledModelsText.Text = string.Join(Environment.NewLine, lines);
-        ModelStorageText.Text = $"模型儲存空間：{_modelRegistry.StorageBytes() / 1024d / 1024d:0} MiB";
+        var storageBytes = await Task.Run(_modelRegistry.StorageBytes);
+        ModelStorageText.Text = $"模型儲存空間：{storageBytes / 1024d / 1024d:0} MiB";
     }
 
     private async void QualityProfile_Checked(object sender, RoutedEventArgs e)
@@ -253,8 +259,12 @@ public sealed partial class MainWindow : Window
         });
         try
         {
-            if (redownload) await manager.DeleteAsync();
-            await manager.InstallAsync(progress, _cancellation.Token);
+            var token = _cancellation.Token;
+            await Task.Run(async () =>
+            {
+                if (redownload) await manager.DeleteAsync();
+                await manager.InstallAsync(progress, token);
+            });
             await RefreshActiveModelsAsync();
         }
         catch (OperationCanceledException) { ModelStorageText.Text = "下載已暫停；再次下載會安全續傳。"; }
@@ -302,7 +312,7 @@ public sealed partial class MainWindow : Window
             XamlRoot = Content.XamlRoot
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-        await _modelRegistry.Manager(model).DeleteAsync();
+        await Task.Run(() => _modelRegistry.Manager(model).DeleteAsync());
         await RefreshActiveModelsAsync();
     }
 
@@ -363,6 +373,7 @@ public sealed partial class MainWindow : Window
         var output = System.IO.Path.ChangeExtension(_selectedPath, format.ToLowerInvariant());
         _completedPath = null;
         _cancellation = new CancellationTokenSource();
+        var cancellationToken = _cancellation.Token;
         StartButton.IsEnabled = false;
         CancelButton.Visibility = Visibility.Visible;
         OpenFileButton.Visibility = Visibility.Collapsed;
@@ -379,8 +390,12 @@ public sealed partial class MainWindow : Window
         {
             var resume = _resume is not null && _resume.SourcePath == _selectedPath &&
                 _resume.Format == format && _resume.OutputScript == outputScript ? _resume : null;
-            _completedPath = await _transcription.RunAsync(_selectedPath, output, format, clean, outputScript, quality,
-                activeModel, progress, resume, _cancellation.Token);
+            // Run the complete model-load/FFmpeg/PInvoke pipeline away from WinUI's
+            // synchronization context. Progress<T> was created on the UI thread and
+            // safely marshals the small status updates back here.
+            _completedPath = await Task.Run(() => _transcription.RunAsync(
+                _selectedPath, output, format, clean, outputScript, quality,
+                activeModel, progress, resume, cancellationToken));
             _resume = null;
             JobProgress.Value = 100;
             JobStatusText.Text = "✓ 轉錄完成";
@@ -390,12 +405,15 @@ public sealed partial class MainWindow : Window
         catch (OperationCanceledException)
         {
             _resume = await _jobs.LoadRecoverableAsync();
+            JobStatusText.Text = "已安全暫停；正在背景釋放模型…";
+            await _transcription.WaitForCleanupAsync();
             JobStatusText.Text = "已安全暫停；再次開始會由已保存位置繼續。";
         }
         catch (Exception error)
         {
             JobStatusText.Text = "轉錄失敗";
-            PreviewText.Text = error.Message;
+            var userMessage = UserFacingTranscriptionError(error);
+            PreviewText.Text = userMessage;
             try
             {
                 var log = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -404,18 +422,25 @@ public sealed partial class MainWindow : Window
                 await File.WriteAllTextAsync(log, error.ToString());
             }
             catch { }
-            await ShowErrorAsync(error.Message);
+            await ShowErrorAsync(userMessage);
         }
         finally
         {
             _cancellation?.Dispose();
             _cancellation = null;
             CancelButton.Visibility = Visibility.Collapsed;
+            CancelButton.IsEnabled = true;
             UpdateStartEnabled();
         }
     }
 
-    private void Cancel_Click(object sender, RoutedEventArgs e) => _cancellation?.Cancel();
+    private void Cancel_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cancellation is null) return;
+        CancelButton.IsEnabled = false;
+        JobStatusText.Text = "正在取消並保存進度…";
+        _cancellation.Cancel();
+    }
 
     private async Task CancelAfterDelayAsync(int milliseconds)
     {
@@ -445,4 +470,14 @@ public sealed partial class MainWindow : Window
 
     private static string FormatDuration(long milliseconds) =>
         TimeSpan.FromMilliseconds(Math.Max(0, milliseconds)).ToString(@"hh\:mm\:ss");
+
+    private static string UserFacingTranscriptionError(Exception error)
+    {
+        if (error is InvalidDataException &&
+            (error.Message.StartsWith("ffprobe", StringComparison.OrdinalIgnoreCase) ||
+             error.Message.StartsWith("FFmpeg", StringComparison.OrdinalIgnoreCase)))
+            return "無法讀取呢個媒體檔案；請確認檔案完整，並使用支援嘅格式。技術資料已保存到本機錯誤記錄。";
+        if (error is TimeoutException) return error.Message;
+        return "本機轉錄未能完成。技術資料已保存到本機錯誤記錄；你可以保留進度後重試。";
+    }
 }

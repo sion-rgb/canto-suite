@@ -80,6 +80,13 @@ CANTO_API void canto_engine_destroy(canto_engine* engine);
 CANTO_API canto_status canto_model_load(canto_engine* engine, const char* model_path);
 CANTO_API canto_status canto_model_unload(canto_engine* engine);
 
+/** Selects content mode (0) or timestamp mode (1). Call before model load. */
+CANTO_API canto_status canto_engine_set_timestamp_mode(
+    canto_engine* engine, uint8_t enabled);
+
+/** Requests prompt cancellation of queued/current inference. Thread-safe. */
+CANTO_API canto_status canto_engine_cancel(canto_engine* engine);
+
 /** Clears buffered audio and queued results without unloading the model. */
 CANTO_API canto_status canto_engine_reset(canto_engine* engine);
 
@@ -97,6 +104,9 @@ CANTO_API void canto_result_free(canto_result* result);
 CANTO_API canto_status canto_engine_get_capabilities(
     const canto_engine* engine,
     canto_capabilities* out_capabilities);
+
+/** Returns the most recently completed native ASR call duration, or -1. */
+CANTO_API int64_t canto_engine_last_inference_ms(const canto_engine* engine);
 
 CANTO_API const char* canto_status_message(canto_status status);
 

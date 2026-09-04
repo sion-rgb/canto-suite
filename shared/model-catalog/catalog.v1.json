@@ -1,13 +1,15 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "2026.09.02",
-  "generatedAt": "2026-09-02T00:00:00Z",
+  "catalogVersion": "2026.09.03",
+  "generatedAt": "2026-09-03T00:00:00Z",
   "models": [
     {
       "id": "sensevoice-yue-int8-2024-07-17",
       "displayName": "Cantonese Compact ASR",
       "role": ["LIVE_ASR", "QUALITY_ASR", "TXT_ASR"],
       "qualityProfiles": {"TXT_ASR": ["Fast"]},
+      "roleDisplayNames": {"TXT_ASR": "Cantonese Compact Content ASR"},
+      "roleRuntimeOptions": {"TXT_ASR": {"timestampMode": false}},
       "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
       "platform": ["android-arm64", "windows-x64"],
       "backend": "sherpa-onnx-sense-voice",
@@ -64,6 +66,8 @@
       "displayName": "Whisper Base Multilingual Timestamp ASR",
       "role": ["SRT_ASR"],
       "qualityProfiles": {"SRT_ASR": ["Fast"]},
+      "roleDisplayNames": {"SRT_ASR": "Whisper Base Timestamp ASR"},
+      "roleRuntimeOptions": {"SRT_ASR": {"timestampMode": true}},
       "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
       "platform": ["windows-x64"],
       "backend": "whisper.cpp",
@@ -91,9 +95,17 @@
     },
     {
       "id": "whisper-small-multilingual-q5-1",
-      "displayName": "Balanced Cantonese Timestamp ASR",
+      "displayName": "Whisper Small Multilingual ASR",
       "role": ["TXT_ASR", "SRT_ASR"],
       "qualityProfiles": {"TXT_ASR": ["Balanced"], "SRT_ASR": ["Balanced"]},
+      "roleDisplayNames": {
+        "TXT_ASR": "Balanced Cantonese Content ASR",
+        "SRT_ASR": "Balanced Cantonese Timestamp ASR"
+      },
+      "roleRuntimeOptions": {
+        "TXT_ASR": {"timestampMode": false},
+        "SRT_ASR": {"timestampMode": true}
+      },
       "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
       "platform": ["windows-x64"],
       "backend": "whisper.cpp",
@@ -119,9 +131,17 @@
     },
     {
       "id": "whisper-large-v3-turbo-q5-0",
-      "displayName": "High Accuracy Cantonese Timestamp ASR",
+      "displayName": "Whisper Large-v3-Turbo Multilingual ASR",
       "role": ["TXT_ASR", "SRT_ASR"],
       "qualityProfiles": {"TXT_ASR": ["High Accuracy"], "SRT_ASR": ["High Accuracy"]},
+      "roleDisplayNames": {
+        "TXT_ASR": "High Accuracy Cantonese Content ASR",
+        "SRT_ASR": "High Accuracy Cantonese Timestamp ASR"
+      },
+      "roleRuntimeOptions": {
+        "TXT_ASR": {"timestampMode": false},
+        "SRT_ASR": {"timestampMode": true}
+      },
       "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
       "platform": ["windows-x64"],
       "backend": "whisper.cpp",

@@ -11,6 +11,10 @@
 #include <thread>
 #include <vector>
 
+#if defined(__ANDROID__)
+#include <android/log.h>
+#endif
+
 #if defined(__GNUC__)
 #define CANTO_LLM_API __attribute__((visibility("default")))
 #else
@@ -25,6 +29,18 @@ struct canto_llm {
 
 namespace {
 std::once_flag backend_once;
+
+#if defined(__ANDROID__)
+void android_llama_log(ggml_log_level level, const char* text, void*) {
+  if ((level != GGML_LOG_LEVEL_WARN && level != GGML_LOG_LEVEL_ERROR) ||
+      text == nullptr) {
+    return;
+  }
+  const int priority = level == GGML_LOG_LEVEL_ERROR ? ANDROID_LOG_ERROR
+                                                      : ANDROID_LOG_WARN;
+  __android_log_write(priority, "CantoLLM", text);
+}
+#endif
 
 // Constrain every generation to the persisted MeetingReport wire format.  The
 // model still supplies all values, while the sampler guarantees parseable JSON
@@ -68,7 +84,20 @@ CANTO_LLM_API int32_t canto_llm_create(const char* model_path, int32_t threads,
   if (model_path == nullptr || output == nullptr) return 1;
   *output = nullptr;
   try {
-    std::call_once(backend_once, [] { ggml_backend_load_all(); });
+    std::call_once(backend_once, [] {
+#if defined(__ANDROID__)
+      llama_log_set(android_llama_log, nullptr);
+      // Android packages native libraries inside the APK. Directory scanning
+      // cannot reliably discover a dynamically dispatched ggml CPU backend
+      // there (and Android Native Bridge makes that even less reliable), so
+      // load the baseline ARMv8 backend by its packaged soname first.
+      if (ggml_backend_load("libggml-cpu-android_armv8.0_1.so") == nullptr) {
+        __android_log_write(ANDROID_LOG_ERROR, "CantoLLM",
+                            "Unable to load packaged ARMv8 CPU backend");
+      }
+#endif
+      ggml_backend_load_all();
+    });
     llama_model_params params = llama_model_default_params();
     params.n_gpu_layers = 0;
     auto model = llama_model_load_from_file(model_path, params);

@@ -225,13 +225,13 @@ Model role and quality profile are separate concepts. The active TXT model and a
 
 Validated initial profile mapping:
 
-| Profile | TXT role | SRT role |
+| Profile | TXT role/runtime | SRT role/runtime |
 |---|---|---|
-| Fast | SenseVoice INT8 | Whisper Base multilingual Q5_1 |
-| Balanced | Whisper Small multilingual Q5_1 | Whisper Small multilingual Q5_1 |
-| High Accuracy | Whisper Large-v3-Turbo Q5_0 | Whisper Large-v3-Turbo Q5_0 |
+| Fast | SenseVoice INT8, content mode | Whisper Base multilingual Q5_1, timestamp mode |
+| Balanced | Whisper Small multilingual Q5_1, content mode (timestamps disabled) | Whisper Small multilingual Q5_1, timestamp mode |
+| High Accuracy | Whisper Large-v3-Turbo Q5_0, content mode (timestamps disabled) | Whisper Large-v3-Turbo Q5_0, timestamp mode |
 
-All three rows resolve to different revision/SHA-pinned model bundles through the current C++ backend. Qwen3-ASR 0.6B remains disabled until a real native sherpa-onnx adapter and Cantonese benchmark pass. Whisper Base must never be marketed as the highest-accuracy SRT engine.
+All three profiles resolve to different revision/SHA-pinned model bundles through the current C++ backend. A physical Whisper bundle may serve both roles only when the catalog explicitly gives it independent role labels and content-versus-timestamp runtime settings; selecting TXT must never silently run the SRT timestamp configuration. Qwen3-ASR 0.6B remains disabled until a real native sherpa-onnx adapter and Cantonese benchmark pass. Whisper Base must never be marketed as the highest-accuracy SRT engine.
 
 ### TXT
 
@@ -350,6 +350,8 @@ Use segmented recording.
 Conceptually:
 
 `Meeting -> Segment 1 -> Segment 2 -> ...`
+
+The current Android durable commit interval is 30 seconds. A segment becomes visible to the meeting database only after MediaMuxer closes it and an atomic `.m4a.part -> .m4a` rename succeeds; a process-killed open tail is retained as `.m4a.incomplete` and must not be presented as playable media.
 
 Each segment may contain:
 
@@ -658,6 +660,10 @@ Support:
 - cancel
 - resume
 
+All FFmpeg decoding, model hashing/loading, PCM feeding, native inference, result polling, and native teardown must execute outside the WinUI thread. Progress returns through the UI synchronization context. CPU inference must leave processor capacity for WinUI, cancellation, FFmpeg, and the operating system instead of saturating every logical processor.
+
+The local bounded diagnostics log records job state, chunk, model/revision/role, model load count, FFmpeg progress, native queue/final wait, last native ASR duration, memory use, cancellation, and cleanup duration. It must not record source paths or transcript content.
+
 Store enough job state to continue interrupted work:
 
 - source fingerprint
@@ -753,6 +759,8 @@ Controls:
 
 - Pause if safely supported
 - Cancel
+
+Cancel must immediately update the UI, stop FFmpeg, request native cancellation, persist resumable progress, and release a slow native engine in the background so the window remains usable.
 
 ### Completion
 

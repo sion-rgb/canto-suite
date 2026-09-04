@@ -18,7 +18,22 @@ internal sealed record CatalogModel(
     [property: JsonPropertyName("architecture")] string Architecture,
     [property: JsonPropertyName("enabled")] bool Enabled,
     [property: JsonPropertyName("files")] List<CatalogFile> Files,
-    [property: JsonPropertyName("qualityProfiles")] Dictionary<string, List<string>>? QualityProfiles = null);
+    [property: JsonPropertyName("qualityProfiles")] Dictionary<string, List<string>>? QualityProfiles = null,
+    [property: JsonPropertyName("roleDisplayNames")] Dictionary<string, string>? RoleDisplayNames = null,
+    [property: JsonPropertyName("roleRuntimeOptions")] Dictionary<string, CatalogRoleRuntime>? RoleRuntimeOptions = null)
+{
+    [JsonIgnore] public string TxtDisplayName => DisplayNameForRole("TXT_ASR");
+    [JsonIgnore] public string SrtDisplayName => DisplayNameForRole("SRT_ASR");
+
+    public string DisplayNameForRole(string role) =>
+        RoleDisplayNames?.TryGetValue(role, out var value) == true ? value : DisplayName;
+
+    public bool TimestampModeForRole(string role) =>
+        RoleRuntimeOptions?.TryGetValue(role, out var value) == true
+            ? value.TimestampMode : role == "SRT_ASR";
+}
+internal sealed record CatalogRoleRuntime(
+    [property: JsonPropertyName("timestampMode")] bool TimestampMode);
 internal sealed record CatalogFile(
     [property: JsonPropertyName("path")] string Path,
     [property: JsonPropertyName("size")] long Size,
@@ -36,6 +51,7 @@ internal sealed record ModelState(bool Installed, bool Verified, string ModelId,
 
 internal sealed class ModelManager
 {
+    private static readonly Lazy<string> DetectedGpu = new(DetectGpu, true);
     internal static string DefaultRoot => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "CantoSuite", "CantoTranscribe", "models");
@@ -86,7 +102,10 @@ internal sealed class ModelManager
                 ? "Balanced" : "Fast";
     }
 
-    public async Task<ModelState> GetStateAsync(CancellationToken cancellationToken = default)
+    public Task<ModelState> GetStateAsync(CancellationToken cancellationToken = default) =>
+        Task.Run(() => GetStateCoreAsync(cancellationToken), cancellationToken);
+
+    private async Task<ModelState> GetStateCoreAsync(CancellationToken cancellationToken)
     {
         var verified = Directory.Exists(InstalledPath);
         if (verified)
@@ -103,7 +122,7 @@ internal sealed class ModelManager
         var memoryMiB = GetMemoryMiB();
         return new ModelState(verified, verified, _model.Id, _model.Revision,
             verified ? InstalledPath : null, _model.Files.Sum(file => file.Size),
-            Environment.ProcessorCount, memoryMiB, DetectGpu(), RecommendProfile(),
+            Environment.ProcessorCount, memoryMiB, DetectedGpu.Value, RecommendProfile(),
             _model.DisplayName, _model.Backend, _model.Roles);
     }
 
@@ -168,11 +187,10 @@ internal sealed class ModelManager
     public Task<ModelState> RepairAsync(IProgress<ModelProgress> progress,
         CancellationToken cancellationToken) => InstallAsync(progress, cancellationToken);
 
-    public Task DeleteAsync()
+    public Task DeleteAsync() => Task.Run(() =>
     {
         if (Directory.Exists(InstalledPath)) Directory.Delete(InstalledPath, true);
-        return Task.CompletedTask;
-    }
+    });
 
     public long StorageBytes()
     {

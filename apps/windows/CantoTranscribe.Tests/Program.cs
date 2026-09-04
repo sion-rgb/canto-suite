@@ -27,18 +27,50 @@ Run("HK Traditional clean Cantonese regression", () =>
     if (!clean.Contains("開飛", StringComparison.Ordinal))
         throw new Exception("deterministic cleanup falsely corrected a semantic ASR error");
 });
+Run("Final HK Traditional gate covers TXT and SRT", () =>
+{
+    var dictionary = new DictionaryService();
+    var normalized = OutputNormalizer.NormalizeSegments([
+        new TimedText(0, 4_000, "后面个文件柜靠住墙，这啲係我哋嘅嘢", "")
+    ], "香港繁體", dictionary);
+    Equal("後面個文件櫃靠住牆，這啲係我哋嘅嘢", normalized[0].RawText);
+    Equal("後面個文件櫃靠住牆，這啲係我哋嘅嘢。", normalized[0].CleanText);
+    var srt = SrtFormatter.Render(normalized, clean: true);
+    foreach (var unintended in new[] { '后', '个', '柜', '墙', '这' })
+    {
+        if (normalized[0].CleanText.Contains(unintended) || srt.Contains(unintended))
+            throw new Exception($"final output retained Simplified character: {unintended}");
+    }
+});
 Run("Quality profiles select different real model bundles", () =>
 {
     var models = ModelManager.LoadCatalog().Models;
-    string Pick(string role, string profile) => models.Single(model => model.Enabled &&
+    CatalogModel PickModel(string role, string profile) => models.Single(model => model.Enabled &&
         model.Platforms.Contains("windows-x64") && model.Roles.Contains(role) &&
-        ModelManager.SupportsProfile(model, role, profile)).Id;
-    var txt = new[] { Pick("TXT_ASR", "Fast"), Pick("TXT_ASR", "Balanced"), Pick("TXT_ASR", "High Accuracy") };
-    var srt = new[] { Pick("SRT_ASR", "Fast"), Pick("SRT_ASR", "Balanced"), Pick("SRT_ASR", "High Accuracy") };
+        ModelManager.SupportsProfile(model, role, profile));
+    string Pick(string role, string profile) => PickModel(role, profile).Id;
+    var profiles = new[] { "Fast", "Balanced", "High Accuracy" };
+    var txt = profiles.Select(profile => Pick("TXT_ASR", profile)).ToArray();
+    var srt = profiles.Select(profile => Pick("SRT_ASR", profile)).ToArray();
     if (txt.Distinct().Count() != 3 || srt.Distinct().Count() != 3)
         throw new Exception("quality profiles are aliases instead of different models");
     if (Pick("SRT_ASR", "High Accuracy").Contains("base", StringComparison.OrdinalIgnoreCase))
         throw new Exception("Whisper Base is incorrectly marketed as highest accuracy");
+    foreach (var profile in profiles)
+    {
+        var txtModel = PickModel("TXT_ASR", profile);
+        var srtModel = PickModel("SRT_ASR", profile);
+        if (txtModel.Id == srtModel.Id &&
+            (txtModel.TimestampModeForRole("TXT_ASR") ||
+             !srtModel.TimestampModeForRole("SRT_ASR")))
+            throw new Exception($"{profile} shares weights without explicit content/timestamp modes");
+        if (txtModel.DisplayNameForRole("TXT_ASR").Contains(
+                "Timestamp", StringComparison.OrdinalIgnoreCase))
+            throw new Exception($"{profile} TXT is misleadingly labelled as timestamp ASR");
+    }
+    if (!PickModel("SRT_ASR", "High Accuracy").DisplayNameForRole("SRT_ASR")
+            .Contains("Timestamp", StringComparison.OrdinalIgnoreCase))
+        throw new Exception("High Accuracy SRT role is not labelled independently");
 });
 Run("SRT syntax and segmentation", () =>
 {
@@ -124,7 +156,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("CantoTranscribe pure logic tests: PASS (10/10)");
+Console.WriteLine("CantoTranscribe pure logic tests: PASS (11/11)");
 return 0;
 
 void Run(string name, Action test)

@@ -10,6 +10,7 @@
     <Compile Include="..\CantoTranscribe\DictionaryService.cs" Link="DictionaryService.cs" />
     <Compile Include="..\CantoTranscribe\JobStore.cs" Link="JobStore.cs" />
     <Compile Include="..\CantoTranscribe\ModelManager.cs" Link="ModelManager.cs" />
+    <Compile Include="..\CantoTranscribe\OutputNormalizer.cs" Link="OutputNormalizer.cs" />
     <Compile Include="..\CantoTranscribe\SrtFormatter.cs" Link="SrtFormatter.cs" />
     <Content Include="..\..\..\shared\cantonese-dictionary\default.v1.json"
              Link="resources\cantonese-dictionary\default.v1.json"
