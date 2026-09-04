@@ -85,7 +85,7 @@ OpenCC dictionary revision: `26753884f1984add422f3b0249ccee8613deaff6`, Apache-2
 ## Final artifacts
 
 - Android: `release/android-arm64/CantoMeet-arm64-release.apk`, 56,955,559 bytes, SHA-256 `5590E9A960D493AE264D17C5A36C49BAA1F339EABC0330E245E8809D4F54057C`.
-- Windows: `release/windows-winui-x64-production/CantoTranscribe.exe`, 272,896 bytes, SHA-256 `60E261934C03C9F414F6400A6530D977EC439AC1D70F10873D25B761FFB2C2C3`; distribute the complete containing directory.
+- Windows: `release/windows-winui-x64-production/CantoTranscribe.exe`, 272,896 bytes, SHA-256 `18C073896D6535D5665E3FC3A6754B4541144992978643AF96230DD5C605433E`; distribute the complete containing directory.
 
 ## Physical hardware and remaining release limitations
 
@@ -102,6 +102,7 @@ OpenCC dictionary revision: `26753884f1984add422f3b0249ccee8613deaff6`, Apache-2
 - Verified implementation commit: `2741ae735e9ca7db2d974de88f5af4140351ce61`.
 - Remote: `https://github.com/sion-rgb/canto-suite` (private).
 - Verified implementation and final QA metadata are pushed to `origin/master`.
-- Latest published device-test pre-release remains `v0.1.0-rc2`; it predates the emulator-driven Android runtime fixes in commit `2741ae735e9ca7db2d974de88f5af4140351ce61`.
-- RC2 Android asset: `CantoMeet-arm64-release.apk`, SHA-256 `4259073828cfe16a3cbda4d3e6317f76089af0695065944dd3e8f0300ee3934e`.
-- RC2 Windows asset: `CantoTranscribe-Windows-x64-v0.1.0-rc2.zip`, SHA-256 `ab0019f23516f03c8e2a9d7e88f179d86055543605c098217a04c99fb9a63573`.
+- Latest published device-test pre-release: [`v0.1.0-rc3`](https://github.com/sion-rgb/canto-suite/releases/tag/v0.1.0-rc3), targeting commit `4dc1d6a9d8f302ff277f1e5e394cddc112f2049c`.
+- RC3 Android asset: `CantoMeet-arm64-release.apk`, SHA-256 `5590e9a960d493ae264d17c5a36c49baa1f339eabc0330e245e8809d4f54057c`.
+- RC3 Windows asset: `CantoTranscribe-Windows-x64-v0.1.0-rc3.zip`, SHA-256 `e2daa7b121b9b3077df16ed2b47f4d935062f91a50c7565da74841f54cedb23d`.
+- RC3 checksum asset: `Canto-Suite-v0.1.0-rc3-SHA256SUMS.txt`; RC2 assets remain available as historical builds.
