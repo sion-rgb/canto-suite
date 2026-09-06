@@ -3,14 +3,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:canto_core/canto_core.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/meeting_store.dart';
-import 'core/model_download.dart';
+import 'core/model_registry.dart';
+import 'ai_models_screen.dart';
 import 'core/models.dart';
 import 'core/local_meeting_llm.dart';
 import 'core/quality_transcription.dart';
@@ -21,24 +18,24 @@ void main() async {
   final store = MeetingStore();
   await store.repairTemporaryFiles();
   final preferences = await SharedPreferences.getInstance();
-  runApp(CantoMeetApp(store: store, preferences: preferences));
-}
-
-bool hasInstalledMobileModels(SharedPreferences preferences) {
-  final asrPath = preferences.getString('asr_model_path');
-  final llmPath = preferences.getString('meeting_llm_path');
-  return preferences.getString('quality_profile') != null &&
-      asrPath != null &&
-      Directory(asrPath).existsSync() &&
-      llmPath != null &&
-      File(llmPath).existsSync();
+  runApp(CantoMeetApp(
+      store: store,
+      preferences: preferences,
+      modelReadiness:
+          MobileModelRegistry.open().then((registry) => registry.ready())));
 }
 
 class CantoMeetApp extends StatelessWidget {
   const CantoMeetApp(
-      {super.key, required this.store, required this.preferences});
+      {super.key,
+      required this.store,
+      required this.preferences,
+      this.modelsReady = false,
+      this.modelReadiness});
   final MeetingStore store;
   final SharedPreferences preferences;
+  final bool modelsReady;
+  final Future<bool>? modelReadiness;
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -47,13 +44,30 @@ class CantoMeetApp extends StatelessWidget {
         themeMode: ThemeMode.system,
         theme: _theme(Brightness.light),
         darkTheme: _theme(Brightness.dark),
-        home: !hasInstalledMobileModels(preferences)
-            ? QualitySetup(store: store, preferences: preferences)
-            : HomeScreen(
-                store: store,
-                profile: preferences.getString('quality_profile')!,
-                preferences: preferences),
+        home: modelReadiness == null
+            ? _home(modelsReady)
+            : FutureBuilder<bool>(
+                future: modelReadiness,
+                builder: (context, snapshot) =>
+                    snapshot.connectionState != ConnectionState.done
+                        ? const Scaffold(
+                            body: Center(
+                                child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text('正在驗證已選模型…')
+                              ])))
+                        : _home(snapshot.data == true)),
       );
+
+  Widget _home(bool ready) => !ready
+      ? QualitySetup(store: store, preferences: preferences)
+      : HomeScreen(
+          store: store,
+          profile: preferences.getString('quality_profile') ?? 'custom',
+          preferences: preferences);
 
   ThemeData _theme(Brightness brightness) {
     final dark = brightness == Brightness.dark;
@@ -74,234 +88,22 @@ class CantoMeetApp extends StatelessWidget {
   }
 }
 
-class QualitySetup extends StatefulWidget {
+class QualitySetup extends StatelessWidget {
   const QualitySetup(
       {super.key, required this.store, required this.preferences});
   final MeetingStore store;
   final SharedPreferences preferences;
   @override
-  State<QualitySetup> createState() => _QualitySetupState();
-}
-
-class _QualitySetupState extends State<QualitySetup> {
-  static const MethodChannel _hardware =
-      MethodChannel('hk.canto.canto_meet/audio_control');
-  String selected = 'standard';
-  String outputScript = 'traditional';
-  String hardwareDescription = '正在偵測裝置…';
-  bool downloading = false;
-  double progress = 0;
-  String? installError;
-  String? installTechnicalDetails;
-  String downloadSource = '';
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_detectHardware());
-  }
-
-  Future<void> _detectHardware() async {
-    try {
-      final raw =
-          await _hardware.invokeMapMethod<String, dynamic>('hardwareProfile');
-      if (raw == null || !mounted) return;
-      setState(() {
-        selected = raw['recommendation']?.toString() ?? 'standard';
-        hardwareDescription =
-            '${raw['processors']} 核心 · 裝置記憶體 ${raw['memoryMiB']} MiB';
+  Widget build(BuildContext context) => AiModelsScreen(onReady: () async {
+        final registry = await MobileModelRegistry.open();
+        await preferences.setString('quality_profile', registry.preset);
+        if (!context.mounted) return;
+        await Navigator.of(context).pushReplacement(MaterialPageRoute(
+            builder: (_) => HomeScreen(
+                store: store,
+                profile: registry.preset,
+                preferences: preferences)));
       });
-    } catch (_) {
-      if (mounted) setState(() => hardwareDescription = '未能讀取硬件資料 · 建議標準');
-    }
-  }
-
-  Future<void> _installAndContinue() async {
-    setState(() {
-      downloading = true;
-      installError = null;
-      installTechnicalDetails = null;
-      downloadSource = '';
-    });
-    final client = http.Client();
-    try {
-      final support = await getApplicationSupportDirectory();
-      final root = Directory(p.join(support.path, 'models'));
-      final installer = ModelInstaller(root, client);
-      final asrBytes =
-          senseVoiceModelFiles.fold<int>(0, (sum, file) => sum + file.size);
-      final llmBytes =
-          meetingLlmModelFiles.fold<int>(0, (sum, file) => sum + file.size);
-      final allBytes = asrBytes + llmBytes;
-      await installer.install(
-          senseVoiceModelId, senseVoiceModelVersion, senseVoiceModelFiles,
-          bundles: senseVoiceModelBundles, onProgress: (received, total) {
-        if (mounted) setState(() => progress = received / allBytes);
-      }, onSourceChanged: (source) {
-        if (mounted) setState(() => downloadSource = source);
-      });
-      await installer.install(
-          meetingLlmModelId, meetingLlmModelVersion, meetingLlmModelFiles,
-          onProgress: (received, total) {
-        if (mounted) {
-          setState(() => progress = (asrBytes + received) / allBytes);
-        }
-      }, onSourceChanged: (source) {
-        if (mounted) setState(() => downloadSource = source);
-      });
-      final modelPath =
-          p.join(root.path, senseVoiceModelId, senseVoiceModelVersion);
-      final llmPath = p.join(root.path, meetingLlmModelId,
-          meetingLlmModelVersion, meetingLlmFileName);
-      await widget.preferences.setString('quality_profile', selected);
-      await widget.preferences.setString('output_script', outputScript);
-      await widget.preferences.setString('asr_model_path', modelPath);
-      await widget.preferences.setString('meeting_llm_path', llmPath);
-      if (!mounted) return;
-      await Navigator.of(context).pushReplacement(MaterialPageRoute(
-          builder: (_) => HomeScreen(
-              store: widget.store,
-              profile: selected,
-              preferences: widget.preferences)));
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          installError = error is ModelInstallException
-              ? error.userMessage
-              : '模型安裝未完成。請檢查網絡及可用儲存空間後重試。';
-          installTechnicalDetails = error is ModelInstallException
-              ? error.technicalDetails
-              : error.toString();
-          downloading = false;
-        });
-      }
-    } finally {
-      client.close();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(
-            child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: ListView(children: [
-            const SizedBox(height: 16),
-            Icon(Icons.graphic_eq_rounded,
-                size: 54, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 20),
-            Text('選擇 AI 品質',
-                textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            const Text('模型下載後，錄音、逐字稿同會議摘要都會留喺你部電話處理。',
-                textAlign: TextAlign.center),
-            const SizedBox(height: 6),
-            Text(hardwareDescription,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 8),
-            const Text('私隱：網絡只用於下載模型，不會上載錄音、逐字稿或摘要。',
-                textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
-            const SizedBox(height: 28),
-            RadioGroup<String>(
-              groupValue: selected,
-              onChanged: (value) => setState(() => selected = value!),
-              child: Column(children: [
-                _profile('light', '輕量', '適合入門裝置及較低運算負載',
-                    Icons.battery_saver_outlined),
-                _profile('standard', '標準', '速度同準確度平衡', Icons.balance_outlined,
-                    recommended: true),
-                _profile(
-                    'high', '高品質', '適合較高規格裝置', Icons.auto_awesome_outlined),
-              ]),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: outputScript,
-              decoration: const InputDecoration(
-                  labelText: '輸出中文格式', border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: 'traditional', child: Text('香港繁體（預設）')),
-                DropdownMenuItem(value: 'simplified', child: Text('簡體中文')),
-              ],
-              onChanged: downloading
-                  ? null
-                  : (value) => setState(() => outputScript = value!),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: downloading ? null : _installAndContinue,
-              style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(54)),
-              child: Text(downloading
-                  ? '下載模型 ${(progress * 100).toStringAsFixed(0)}%'
-                  : installError == null
-                      ? '下載模型並繼續'
-                      : '重試下載'),
-            ),
-            if (downloading) ...[
-              const SizedBox(height: 10),
-              LinearProgressIndicator(value: progress),
-              if (downloadSource.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text('下載來源：$downloadSource',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ],
-            if (installError != null) ...[
-              const SizedBox(height: 10),
-              Text(installError!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              if (installTechnicalDetails != null)
-                ExpansionTile(
-                  title: const Text('進階資料'),
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: const EdgeInsets.only(bottom: 8),
-                  children: [
-                    SelectableText(installTechnicalDetails!,
-                        style: Theme.of(context).textTheme.bodySmall),
-                  ],
-                ),
-            ],
-            const SizedBox(height: 14),
-          ]),
-        )),
-      );
-
-  Widget _profile(String value, String title, String subtitle, IconData icon,
-          {bool recommended = false}) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Card(
-          clipBehavior: Clip.antiAlias,
-          child: RadioListTile<String>(
-            value: value,
-            title: Row(children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-              if (recommended) ...[
-                const SizedBox(width: 8),
-                Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(20)),
-                    child: const Text('建議', style: TextStyle(fontSize: 12))),
-              ]
-            ]),
-            subtitle: Text(subtitle),
-            secondary: Icon(icon),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          ),
-        ),
-      );
 }
 
 class OutputSettingsScreen extends StatefulWidget {
@@ -323,8 +125,16 @@ class _OutputSettingsScreenState extends State<OutputSettingsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('輸出設定')),
+        appBar: AppBar(title: const Text('設定')),
         body: ListView(padding: const EdgeInsets.all(20), children: [
+          ListTile(
+              title: const Text('AI 模型'),
+              subtitle: const Text('獨立選擇即時轉錄、正式轉錄及會議摘要模型'),
+              leading: const Icon(Icons.memory),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AiModelsScreen()))),
+          const Divider(height: 24),
           Text('輸出中文格式',
               style: Theme.of(context)
                   .textTheme
@@ -394,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(fontWeight: FontWeight.w700)),
             actions: [
               IconButton(
-                  tooltip: '輸出設定',
+                  tooltip: '設定',
                   onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -523,6 +333,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
   Timer? timer;
   Timer? pollTimer;
   CantoCoreWorker? coreWorker;
+  MobileModelLease? liveModelLease;
   StreamSubscription<Int16List>? pcmSubscription;
   StreamSubscription<TranscriptResult>? resultSubscription;
   final List<TranscriptResult> transcriptResults = [];
@@ -537,12 +348,12 @@ class _RecordingScreenState extends State<RecordingScreen> {
 
   Future<void> _start() async {
     try {
-      final preferences = await SharedPreferences.getInstance();
-      final modelPath = preferences.getString('asr_model_path');
-      if (modelPath == null) throw StateError('未安裝廣東話語音模型');
+      final registry = await MobileModelRegistry.open();
+      liveModelLease = await registry.acquire('LIVE_ASR');
       coreWorker = await CantoCoreWorker.start();
       resultSubscription = coreWorker!.results.listen(_onTranscriptResult);
-      coreWorker!.loadModel(modelPath);
+      await coreWorker!.loadModel(liveModelLease!.nativePath);
+      await liveModelLease!.loaded();
       pcmSubscription = recorder.pcm16.listen(
         (samples) => coreWorker?.push(samples),
         onError: (Object exception) {
@@ -610,7 +421,7 @@ class _RecordingScreenState extends State<RecordingScreen> {
     }
     await pcmSubscription?.cancel();
     await resultSubscription?.cancel();
-    coreWorker?.dispose();
+    await _releaseLiveModel();
     await widget.store.finalizeMeeting(widget.meetingId, seconds);
     if (!mounted) return;
     final meeting = Meeting(
@@ -630,9 +441,21 @@ class _RecordingScreenState extends State<RecordingScreen> {
     pollTimer?.cancel();
     unawaited(pcmSubscription?.cancel());
     unawaited(resultSubscription?.cancel());
-    coreWorker?.dispose();
+    unawaited(_releaseLiveModel());
     unawaited(recorder.dispose());
     super.dispose();
+  }
+
+  Future<void> _releaseLiveModel() async {
+    final worker = coreWorker;
+    coreWorker = null;
+    final lease = liveModelLease;
+    liveModelLease = null;
+    try {
+      await worker?.dispose();
+    } finally {
+      lease?.release();
+    }
   }
 
   @override
@@ -764,17 +587,17 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
   Future<void> _process() async {
     setState(() => processingError = null);
     LocalLlmWorker? llm;
+    MobileModelLease? qualityLease;
+    MobileModelLease? llmLease;
     try {
       final preferences = await SharedPreferences.getInstance();
-      final asrPath = preferences.getString('asr_model_path');
-      final llmPath = preferences.getString('meeting_llm_path');
-      if (asrPath == null || llmPath == null) {
-        throw StateError('本機 AI 模型未完整安裝');
-      }
+      final registry = await MobileModelRegistry.open();
+      qualityLease = await registry.acquire('QUALITY_ASR');
       final simplified = preferences.getString('output_script') == 'simplified';
-      await QualityTranscriber(widget.store)
-          .runMeeting(widget.meeting.id, asrPath, simplified: simplified,
-              onProgress: (completed, total) {
+      await QualityTranscriber(widget.store).runMeeting(
+          widget.meeting.id, qualityLease.nativePath,
+          simplified: simplified,
+          onModelLoaded: qualityLease.loaded, onProgress: (completed, total) {
         if (mounted) {
           setState(() {
             completedSegments = completed;
@@ -782,14 +605,18 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
           });
         }
       });
+      qualityLease.release();
+      qualityLease = null;
       if (mounted) {
         setState(() => qualityComplete = true);
       }
       await widget.store
           .setMeetingState(widget.meeting.id, MeetingState.summarizing);
       final segments = await widget.store.segments(widget.meeting.id);
-      llm = await LocalLlmWorker.start(llmPath,
+      llmLease = await registry.acquire('MEETING_LLM');
+      llm = await LocalLlmWorker.start(llmLease.nativePath,
           threads: Platform.numberOfProcessors.clamp(1, 6));
+      await llmLease.loaded();
       final report = await HierarchicalMeetingSummarizer(llm.generate)
           .summarize(segments, simplified: simplified);
       await widget.store.saveMeetingReport(widget.meeting.id, report);
@@ -800,6 +627,8 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
       if (mounted) setState(() => processingError = error.toString());
     } finally {
       await llm?.dispose();
+      llmLease?.release();
+      qualityLease?.release();
     }
   }
 

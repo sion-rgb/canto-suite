@@ -14,7 +14,7 @@ class MeetingStore {
     final support = await getApplicationSupportDirectory();
     final path = p.join(support.path, 'canto_meet.db');
     _database = await openDatabase(path,
-        version: 2,
+        version: 3,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys=ON'),
         onCreate: (db, _) async {
           await db.execute('''CREATE TABLE meetings(
@@ -35,9 +35,11 @@ class MeetingStore {
           await db.execute(
               'CREATE INDEX segments_meeting_sequence ON segments(meeting_id, sequence)');
           await _createLiveEvents(db);
+          await _createQualityModelCheckpoints(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _createLiveEvents(db);
+          if (oldVersion < 3) await _createQualityModelCheckpoints(db);
         });
     return _database!;
   }
@@ -49,6 +51,16 @@ class MeetingStore {
       created_at INTEGER NOT NULL)''');
     await db.execute('CREATE INDEX IF NOT EXISTS live_events_meeting_time '
         'ON live_transcript_events(meeting_id, start_ms)');
+  }
+
+  static Future<void> _createQualityModelCheckpoints(DatabaseExecutor db) =>
+      db.execute('CREATE TABLE IF NOT EXISTS quality_model_checkpoints('
+          'segment_id TEXT PRIMARY KEY REFERENCES segments(id) ON DELETE CASCADE, model_identity TEXT NOT NULL)');
+
+  Future<String?> qualityModelIdentity(String segmentId) async {
+    final rows = await (await database).query('quality_model_checkpoints',
+        where: 'segment_id=?', whereArgs: [segmentId]);
+    return rows.isEmpty ? null : rows.single['model_identity'] as String;
   }
 
   Future<String> createMeeting(String profile) async {
@@ -120,12 +132,19 @@ class MeetingStore {
     return rows.map((row) => row['text'] as String).toList();
   }
 
-  Future<void> saveQualityTranscript(
-      String segmentId, String formalText) async {
+  Future<void> saveQualityTranscript(String segmentId, String formalText,
+      {String? modelIdentity}) async {
     final db = await database;
-    await db.update(
-        'segments', {'cleaned_text': formalText, 'state': 'quality_complete'},
-        where: 'id=?', whereArgs: [segmentId]);
+    await db.transaction((transaction) async {
+      await transaction.update(
+          'segments', {'cleaned_text': formalText, 'state': 'quality_complete'},
+          where: 'id=?', whereArgs: [segmentId]);
+      if (modelIdentity != null) {
+        await transaction.insert('quality_model_checkpoints',
+            {'segment_id': segmentId, 'model_identity': modelIdentity},
+            conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
   }
 
   Future<void> setMeetingState(String meetingId, MeetingState state) async {

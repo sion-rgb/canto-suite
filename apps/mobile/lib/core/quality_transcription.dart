@@ -25,30 +25,37 @@ class QualityTranscriber {
   static const EventChannel _events =
       EventChannel('hk.canto.canto_meet/audio_events');
 
-  const QualityTranscriber(this.store);
+  const QualityTranscriber(this.store, {this.transcribeFile});
   final MeetingStore store;
+  final Future<String> Function(String path, String modelPath,
+      Future<void> Function()? onModelLoaded)? transcribeFile;
 
   Future<void> runMeeting(String meetingId, String modelPath,
       {required bool simplified,
+      Future<void> Function()? onModelLoaded,
       void Function(int completed, int total)? onProgress}) async {
     final segments = await store.segments(meetingId);
     await store.setMeetingState(meetingId, MeetingState.transcribing);
     for (var index = 0; index < segments.length; index++) {
       final existing = segments[index];
       if (existing.state == 'quality_complete' &&
+          await store.qualityModelIdentity(existing.id) == modelPath &&
           (existing.cleanedText?.trim().isNotEmpty ?? false)) {
         onProgress?.call(index + 1, segments.length);
         continue;
       }
-      final text = await _transcribeFile(existing.audioPath, modelPath);
+      final text = await (transcribeFile ?? _transcribeFile)(
+          existing.audioPath, modelPath, onModelLoaded);
       final formal = await ChineseOutputConverter.convert(text,
           simplified: simplified, clean: true);
-      await store.saveQualityTranscript(existing.id, formal);
+      await store.saveQualityTranscript(existing.id, formal,
+          modelIdentity: modelPath);
       onProgress?.call(index + 1, segments.length);
     }
   }
 
-  Future<String> _transcribeFile(String path, String modelPath) async {
+  Future<String> _transcribeFile(String path, String modelPath,
+      Future<void> Function()? onModelLoaded) async {
     final worker = await CantoCoreWorker.start();
     final results = <String>[];
     final finalResult = Completer<void>();
@@ -87,7 +94,8 @@ class QualityTranscriber {
       }
     });
     try {
-      worker.loadModel(modelPath);
+      await worker.loadModel(modelPath);
+      await onModelLoaded?.call();
       await _control.invokeMethod<void>('decode', {'path': path});
       await finalResult.future.timeout(const Duration(minutes: 8));
       return results.join('\n');
@@ -95,7 +103,7 @@ class QualityTranscriber {
       pollTimer?.cancel();
       await audioSubscription.cancel();
       await resultSubscription.cancel();
-      worker.dispose();
+      await worker.dispose();
     }
   }
 }

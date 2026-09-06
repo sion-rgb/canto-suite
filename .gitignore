@@ -8,6 +8,7 @@ target/
 node_modules/
 dist/
 release/
+work/
 
 # IDE and local state
 .idea/

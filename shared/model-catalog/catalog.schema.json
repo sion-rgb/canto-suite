@@ -7,6 +7,7 @@
     "schemaVersion": {"const": 1},
     "catalogVersion": {"type": "string"},
     "generatedAt": {"type": "string", "format": "date-time"},
+    "androidPresets": {"type": "object", "required": ["light", "standard", "high"], "additionalProperties": {"type": "object", "required": ["LIVE_ASR", "QUALITY_ASR", "MEETING_LLM"], "properties": {"LIVE_ASR": {"type": "string"}, "QUALITY_ASR": {"type": "string"}, "MEETING_LLM": {"type": "string"}}, "additionalProperties": false}},
     "models": {"type": "array", "items": {"$ref": "#/$defs/model"}}
   },
   "$defs": {

@@ -64,6 +64,9 @@ internal sealed class NativeEngine : IDisposable
     private static extern IntPtr canto_status_message(int status);
 
     private IntPtr _engine;
+    private readonly object _lifetime = new();
+    private IDisposable? _modelLease;
+    public string LoadedModelPath { get; private set; } = "";
 
     public NativeEngine(string modelPath, bool timestampMode)
     {
@@ -72,11 +75,13 @@ internal sealed class NativeEngine : IDisposable
             StructSize = (uint)Marshal.SizeOf<EngineConfig>(), SampleRateHz = 16_000,
             RingCapacitySamples = 16_000 * 30, ResultQueueCapacity = 128, ChunkSamples = 16_000 * 10,
         };
-        Check(canto_engine_create(ref config, out _engine));
         try
         {
+            _modelLease = ModelUseGate.Acquire(modelPath);
+            Check(canto_engine_create(ref config, out _engine));
             Check(canto_engine_set_timestamp_mode(_engine, timestampMode ? (byte)1 : (byte)0));
             Check(canto_model_load(_engine, modelPath));
+            LoadedModelPath = Path.GetFullPath(modelPath);
         }
         catch { Dispose(); throw; }
     }
@@ -130,15 +135,29 @@ internal sealed class NativeEngine : IDisposable
 
     public void Dispose()
     {
-        var engine = Interlocked.Exchange(ref _engine, IntPtr.Zero);
-        if (engine != IntPtr.Zero) canto_engine_destroy(engine);
+        var (engine, lease) = Detach();
+        try { if (engine != IntPtr.Zero) canto_engine_destroy(engine); }
+        finally { lease?.Dispose(); }
     }
 
     public Task DisposeAsync()
     {
-        var engine = Interlocked.Exchange(ref _engine, IntPtr.Zero);
-        return engine == IntPtr.Zero
-            ? Task.CompletedTask
-            : Task.Run(() => canto_engine_destroy(engine));
+        var (engine, lease) = Detach();
+        return Task.Run(() =>
+        {
+            try { if (engine != IntPtr.Zero) canto_engine_destroy(engine); }
+            finally { lease?.Dispose(); }
+        });
+    }
+
+    private (IntPtr, IDisposable?) Detach()
+    {
+        lock (_lifetime)
+        {
+            var state = (_engine, _modelLease);
+            _engine = IntPtr.Zero;
+            _modelLease = null;
+            return state;
+        }
     }
 }

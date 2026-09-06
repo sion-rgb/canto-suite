@@ -21,7 +21,8 @@ for model in catalog["models"]:
         for source in item["sources"]:
             parsed = urllib.parse.urlparse(source["url"])
             assert parsed.scheme == "https"
-        assert pathlib.PurePosixPath(item["path"]).name == item["path"]
+        relative = pathlib.PurePosixPath(item["path"])
+        assert not relative.is_absolute() and '..' not in relative.parts and '\\' not in item['path']
     for bundle in model.get("downloadBundles", []):
         assert bundle["size"] > 0
         assert len(bundle["sha256"]) == 64
@@ -58,3 +59,11 @@ for profile in ("Fast", "Balanced", "High Accuracy"):
     if txt["id"] == srt["id"]:
         assert txt["roleDisplayNames"]["TXT_ASR"] != srt["roleDisplayNames"]["SRT_ASR"]
 print(f"catalog ok: {len(ids)} models")
+presets = catalog['androidPresets']
+assert len({json.dumps(value, sort_keys=True) for value in presets.values()}) == 3
+for preset in presets.values():
+    assert set(preset) == {'LIVE_ASR', 'QUALITY_ASR', 'MEETING_LLM'}
+    for role, model_id in preset.items():
+        model = next(model for model in catalog['models'] if model['id'] == model_id)
+        assert model['enabled'] and 'android-arm64' in model['platform'] and role in model['role']
+print('independent Android role/preset catalog ok')

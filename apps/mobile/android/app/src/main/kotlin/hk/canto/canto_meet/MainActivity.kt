@@ -73,6 +73,13 @@ private class MeetingAudioBridge(
             "stop" -> stop(result)
             "decode" -> decode(call, result)
             "hardwareProfile" -> hardwareProfile(result)
+            "modelCatalog" -> {
+                try {
+                    result.success(activity.assets.open("model-catalog/catalog.v1.json").bufferedReader().use { it.readText() })
+                } catch (error: Exception) {
+                    result.error("model_catalog", "未能讀取模型目錄", error.message)
+                }
+            }
             "convertChinese" -> convertChinese(call, result)
             else -> result.notImplemented()
         }

@@ -144,10 +144,11 @@ class ModelInstaller {
 
   Future<void> install(String modelId, String version, List<ModelFile> files,
       {List<ModelBundle> bundles = const [],
+      bool forceRedownload = false,
       void Function(int, int)? onProgress,
       void Function(String)? onSourceChanged}) async {
     final installed = Directory(p.join(root.path, modelId, version));
-    if (await _verifyAll(files, installed)) {
+    if (!forceRedownload && await _verifyAll(files, installed)) {
       final total = files.fold<int>(0, (value, file) => value + file.size);
       onProgress?.call(total, total);
       return;
@@ -159,6 +160,7 @@ class ModelInstaller {
     final failures = <String>[];
 
     for (final bundle in bundles) {
+      if (await _verifyAll(files, staging)) break;
       try {
         await _installBundle(bundle, files, staging,
             onProgress: onProgress, onSourceChanged: onSourceChanged);
@@ -226,7 +228,6 @@ class ModelInstaller {
     final pinPart = File(p.join(root.path, modelId, 'current.json.part'));
     await pinPart.writeAsString(jsonEncode({'version': version}), flush: true);
     final pin = File(p.join(root.path, modelId, 'current.json'));
-    if (await pin.exists()) await pin.delete();
     await pinPart.rename(pin.path);
   }
 

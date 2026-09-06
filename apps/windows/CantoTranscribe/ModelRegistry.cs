@@ -12,14 +12,16 @@ internal sealed class ModelRegistry
     private readonly string _root;
     private readonly string _settingsPath;
     private ModelSelections _selections = new(null, null, null);
+    private readonly SemaphoreSlim _changes = new(1, 1);
 
-    public ModelRegistry(string? root = null)
+    public ModelRegistry(string? root = null, IReadOnlyList<CatalogModel>? catalog = null)
     {
         _root = root ?? ModelManager.DefaultRoot;
-        _settingsPath = System.IO.Path.Combine(
+        _settingsPath = root is null ? System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "CantoSuite", "CantoTranscribe", "model-selections.json");
-        Models = ModelManager.LoadCatalog().Models
+            "CantoSuite", "CantoTranscribe", "model-selections.json")
+            : Path.Combine(root, "model-selections.json");
+        Models = (catalog ?? ModelManager.LoadCatalog().Models)
             .Where(model => model.Enabled && model.Platforms.Contains("windows-x64") &&
                 (model.Roles.Contains("TXT_ASR") || model.Roles.Contains("SRT_ASR")))
             .ToList();
@@ -52,9 +54,9 @@ internal sealed class ModelRegistry
         var profile = ModelManager.RecommendProfile();
         txt ??= ForProfile("TXT_ASR", profile) ?? ForProfile("TXT_ASR", "Fast");
         srt ??= ForProfile("SRT_ASR", profile) ?? ForProfile("SRT_ASR", "Fast");
-        _selections = new ModelSelections(txt?.Id, srt?.Id,
+        var selections = new ModelSelections(txt?.Id, srt?.Id,
             CommonProfile(txt, srt) ?? _selections.QualityProfile ?? "Custom");
-        await SaveAsync(cancellationToken);
+        await SaveAsync(selections, cancellationToken);
     }
 
     public ModelManager ActiveManager(string role)
@@ -74,8 +76,9 @@ internal sealed class ModelRegistry
             ?? throw new InvalidOperationException($"{profile} 未有 TXT 模型");
         var srt = ForProfile("SRT_ASR", profile)
             ?? throw new InvalidOperationException($"{profile} 未有 SRT 模型");
-        _selections = new ModelSelections(txt.Id, srt.Id, profile);
-        await SaveAsync(cancellationToken);
+        await _changes.WaitAsync(cancellationToken);
+        try { await SaveAsync(new ModelSelections(txt.Id, srt.Id, profile), cancellationToken); }
+        finally { _changes.Release(); }
     }
 
     public async Task SetActiveAsync(string role, string modelId,
@@ -83,13 +86,37 @@ internal sealed class ModelRegistry
     {
         var model = Find(modelId, role)
             ?? throw new InvalidOperationException("所選模型不支援呢個輸出角色");
-        _selections = role == "SRT_ASR"
-            ? _selections with { ActiveSrtModelId = model.Id, QualityProfile = "Custom" }
-            : _selections with { ActiveTxtModelId = model.Id, QualityProfile = "Custom" };
-        await SaveAsync(cancellationToken);
+        await _changes.WaitAsync(cancellationToken);
+        try
+        {
+            using var lease = ModelUseGate.Acquire(Manager(model).InstalledPath);
+            if (!(await Manager(model).GetStateAsync(cancellationToken)).Verified)
+                throw new InvalidOperationException("請先下載並完整驗證所選模型，再設為使用中模型。");
+            var selections = role == "SRT_ASR"
+                ? _selections with { ActiveSrtModelId = model.Id, QualityProfile = "Custom" }
+                : _selections with { ActiveTxtModelId = model.Id, QualityProfile = "Custom" };
+            await SaveAsync(selections, cancellationToken);
+        }
+        finally { _changes.Release(); }
     }
 
-    public long StorageBytes() => Models.Select(Manager).Sum(manager => manager.StorageBytes());
+    public bool IsActive(string id) => _selections.ActiveTxtModelId == id || _selections.ActiveSrtModelId == id;
+
+    public async Task UninstallAsync(CatalogModel model, Action<string>? deleteDirectory = null)
+    {
+        await _changes.WaitAsync();
+        try
+        {
+            if (IsActive(model.Id))
+                throw new InvalidOperationException("呢個模型已被 TXT 或 SRT 選用。請先切換至另一個已安裝模型，再卸載。");
+            await Manager(model).DeleteAsync(deleteDirectory);
+        }
+        finally { _changes.Release(); }
+    }
+
+    public long StorageBytes() => Directory.Exists(_root)
+        ? new DirectoryInfo(_root).EnumerateFiles("*", SearchOption.AllDirectories).Sum(file => file.Length)
+        : 0;
 
     private CatalogModel? Find(string? id, string role) => Models.FirstOrDefault(model =>
         model.Id == id && model.Roles.Contains(role));
@@ -116,11 +143,12 @@ internal sealed class ModelRegistry
         return txtProfiles.Intersect(srtProfiles, StringComparer.Ordinal).FirstOrDefault();
     }
 
-    private async Task SaveAsync(CancellationToken cancellationToken)
+    private async Task SaveAsync(ModelSelections selections, CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(System.IO.Path.GetDirectoryName(_settingsPath)!);
         var part = _settingsPath + ".part";
-        await File.WriteAllTextAsync(part, JsonSerializer.Serialize(_selections), cancellationToken);
+        await File.WriteAllTextAsync(part, JsonSerializer.Serialize(selections), cancellationToken);
         File.Move(part, _settingsPath, true);
+        _selections = selections;
     }
 }

@@ -541,12 +541,20 @@ canto_status canto_model_load(canto_engine* engine, const char* model_path) {
     const auto whisper_encoder = directory / "tiny-encoder.int8.onnx";
     const auto whisper_decoder = directory / "tiny-decoder.int8.onnx";
     const auto whisper_tokens = directory / "tiny-tokens.txt";
+    const auto qwen_frontend = directory / "conv_frontend.onnx";
+    const auto qwen_encoder = directory / "encoder.int8.onnx";
+    const auto qwen_decoder = directory / "decoder.int8.onnx";
+    const auto qwen_tokenizer = directory / "tokenizer";
+    const bool is_qwen = std::filesystem::is_regular_file(qwen_frontend) &&
+                         std::filesystem::is_regular_file(qwen_encoder) &&
+                         std::filesystem::is_regular_file(qwen_decoder) &&
+                         std::filesystem::is_regular_file(qwen_tokenizer / "vocab.json");
     const bool is_sense_voice = std::filesystem::is_regular_file(model) &&
                                 std::filesystem::is_regular_file(tokens);
     const bool is_whisper = std::filesystem::is_regular_file(whisper_encoder) &&
                             std::filesystem::is_regular_file(whisper_decoder) &&
                             std::filesystem::is_regular_file(whisper_tokens);
-    if (!is_sense_voice && !is_whisper) {
+    if (!is_sense_voice && !is_whisper && !is_qwen) {
       return CANTO_MODEL_ERROR;
     }
     auto runtime = std::make_shared<SherpaRuntime>();
@@ -556,12 +564,27 @@ canto_status canto_model_load(canto_engine* engine, const char* model_path) {
     const std::string tokens_string = (is_whisper ? whisper_tokens : tokens).string();
     const std::string encoder_string = whisper_encoder.string();
     const std::string decoder_string = whisper_decoder.string();
+    const auto qwen_frontend_string = qwen_frontend.string();
+    const auto qwen_encoder_string = qwen_encoder.string();
+    const auto qwen_decoder_string = qwen_decoder.string();
+    const auto qwen_tokenizer_string = qwen_tokenizer.string();
     config.feat_config.sample_rate = static_cast<int32_t>(engine->config.sample_rate_hz);
     config.feat_config.feature_dim = 80;
-    config.model_config.tokens = tokens_string.c_str();
+    config.model_config.tokens = is_qwen ? "" : tokens_string.c_str();
     config.model_config.num_threads = 2;
     config.model_config.provider = "cpu";
-    if (is_whisper) {
+    if (is_qwen) {
+      auto& qwen = config.model_config.qwen3_asr;
+      qwen.conv_frontend = qwen_frontend_string.c_str();
+      qwen.encoder = qwen_encoder_string.c_str();
+      qwen.decoder = qwen_decoder_string.c_str();
+      qwen.tokenizer = qwen_tokenizer_string.c_str();
+      qwen.max_total_len = 512;
+      qwen.max_new_tokens = 512;
+      qwen.temperature = 0.000001f;
+      qwen.top_p = 0.8f;
+      qwen.seed = 42;
+    } else if (is_whisper) {
       config.model_config.whisper.encoder = encoder_string.c_str();
       config.model_config.whisper.decoder = decoder_string.c_str();
       config.model_config.whisper.language = "zh";
@@ -585,7 +608,7 @@ canto_status canto_model_load(canto_engine* engine, const char* model_path) {
     engine->loaded = true;
     engine->test_backend = false;
     engine->supports_timestamps = is_whisper;
-    engine->backend = is_whisper ? "sherpa-whisper" : "sherpa-sensevoice";
+    engine->backend = is_qwen ? "sherpa-qwen3-asr" : (is_whisper ? "sherpa-whisper" : "sherpa-sensevoice");
     ++engine->generation;
     return CANTO_OK;
   } catch (const std::bad_alloc&) {

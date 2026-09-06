@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-06",
+  "scope": "Model management only; public upstream Cantonese PCM, not microphone or comparative accuracy QA",
+  "windows": {
+    "status": "PASS",
+    "runs": [
+      {
+        "role": "TXT_ASR",
+        "modelId": "sensevoice-yue-int8-2024-07-17",
+        "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+        "backend": "sherpa-sensevoice",
+        "nativePathSuffix": "sensevoice-yue-int8-2024-07-17/2365baeacb507f821a0c8120fcee3d484dba7a07",
+        "nativeLoadAcknowledged": true,
+        "nonemptyOutput": true
+      },
+      {
+        "role": "TXT_ASR",
+        "modelId": "qwen3-asr-0.6b-int8-2026-03-25",
+        "revision": "68818b2313fe77bd06f6a7c5068ff3ef59d02b8a",
+        "backend": "sherpa-qwen3-asr",
+        "nativePathSuffix": "qwen3-asr-0.6b-int8-2026-03-25/68818b2313fe77bd06f6a7c5068ff3ef59d02b8a",
+        "nativeLoadAcknowledged": true,
+        "nonemptyOutput": true
+      },
+      {
+        "role": "TXT_ASR",
+        "modelId": "whisper-base-multilingual-q5-1",
+        "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+        "backend": "whisper.cpp",
+        "nativePathSuffix": "whisper-base-multilingual-q5-1/5359861c739e955e79d9a303bcbc70fb988958b1",
+        "nativeLoadAcknowledged": true,
+        "nonemptyOutput": true
+      },
+      {
+        "role": "SRT_ASR",
+        "modelId": "whisper-small-multilingual-q5-1",
+        "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+        "backend": "whisper.cpp",
+        "nativePathSuffix": "whisper-small-multilingual-q5-1/5359861c739e955e79d9a303bcbc70fb988958b1",
+        "nativeLoadAcknowledged": true,
+        "nonemptyOutput": true
+      },
+      {
+        "role": "SRT_ASR",
+        "modelId": "whisper-base-multilingual-q5-1",
+        "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+        "backend": "whisper.cpp",
+        "nativePathSuffix": "whisper-base-multilingual-q5-1/5359861c739e955e79d9a303bcbc70fb988958b1",
+        "nativeLoadAcknowledged": true,
+        "nonemptyOutput": true
+      }
+    ],
+    "uninstall": {
+      "modelId": "qwen3-asr-0.6b-int8-2026-03-25",
+      "beforeBytes": 1476359053,
+      "afterBytes": 489343542,
+      "reclaimedBytes": 987015511
+    }
+  },
+  "android": {
+    "emulator": {
+      "status": "EMULATOR PASS",
+      "api": 35,
+      "systemImage": "google_apis/x86_64",
+      "apkAbi": "arm64-v8a",
+      "nativeBridge": true,
+      "ramMiB": 6144
+    },
+    "physicalDevice": "NOT TESTED",
+    "runs": [
+      {
+        "phase": "native-loaded",
+        "role": "LIVE_ASR",
+        "modelId": "sensevoice-yue-int8-2024-07-17",
+        "time": "2026-09-05T13:41:43.718485Z",
+        "nativePathSuffix": "sensevoice-yue-int8-2024-07-17/2365baeacb507f821a0c8120fcee3d484dba7a07"
+      },
+      {
+        "phase": "native-asr-pass",
+        "role": "LIVE_ASR",
+        "modelId": "sensevoice-yue-int8-2024-07-17",
+        "time": "2026-09-05T13:41:47.655978Z",
+        "nonemptyOutput": true
+      },
+      {
+        "phase": "native-loaded",
+        "role": "QUALITY_ASR",
+        "modelId": "qwen3-asr-0.6b-int8-2026-03-25",
+        "time": "2026-09-05T13:44:00.177320Z",
+        "nativePathSuffix": "qwen3-asr-0.6b-int8-2026-03-25/68818b2313fe77bd06f6a7c5068ff3ef59d02b8a"
+      },
+      {
+        "phase": "native-asr-pass",
+        "role": "QUALITY_ASR",
+        "modelId": "qwen3-asr-0.6b-int8-2026-03-25",
+        "time": "2026-09-05T13:44:15.894826Z",
+        "nonemptyOutput": true
+      },
+      {
+        "phase": "native-loaded",
+        "role": "LIVE_ASR",
+        "modelId": "qwen3-asr-0.6b-int8-2026-03-25",
+        "time": "2026-09-05T13:46:41.741226Z",
+        "nativePathSuffix": "qwen3-asr-0.6b-int8-2026-03-25/68818b2313fe77bd06f6a7c5068ff3ef59d02b8a"
+      },
+      {
+        "phase": "native-asr-pass",
+        "role": "LIVE_ASR",
+        "modelId": "qwen3-asr-0.6b-int8-2026-03-25",
+        "time": "2026-09-05T13:46:57.871866Z",
+        "nonemptyOutput": true
+      },
+      {
+        "phase": "native-loaded",
+        "role": "QUALITY_ASR",
+        "modelId": "sensevoice-yue-int8-2024-07-17",
+        "time": "2026-09-05T13:47:35.523120Z",
+        "nativePathSuffix": "sensevoice-yue-int8-2024-07-17/2365baeacb507f821a0c8120fcee3d484dba7a07"
+      },
+      {
+        "phase": "native-asr-pass",
+        "role": "QUALITY_ASR",
+        "modelId": "sensevoice-yue-int8-2024-07-17",
+        "time": "2026-09-05T13:47:39.451078Z",
+        "nonemptyOutput": true
+      },
+      {
+        "phase": "native-loaded",
+        "role": "MEETING_LLM",
+        "modelId": "qwen3-0.6b-q4-k-m",
+        "time": "2026-09-05T13:48:33.491433Z",
+        "nativePathSuffix": "qwen3-0.6b-q4-k-m/1208e45d782fe18602c5eaf10e5758d5b0f24c03/Qwen3-0.6B-Q4_K_M.gguf"
+      },
+      {
+        "phase": "native-llm-pass",
+        "modelId": "qwen3-0.6b-q4-k-m",
+        "time": "2026-09-05T13:48:49.409115Z",
+        "nonemptyOutput": true
+      },
+      {
+        "phase": "native-loaded",
+        "role": "MEETING_LLM",
+        "modelId": "qwen3-0.6b-q8-0",
+        "time": "2026-09-05T13:50:11.913092Z",
+        "nativePathSuffix": "qwen3-0.6b-q8-0/23749fefcc72300e3a2ad315e1317431b06b590a/Qwen3-0.6B-Q8_0.gguf"
+      },
+      {
+        "phase": "native-llm-pass",
+        "modelId": "qwen3-0.6b-q8-0",
+        "time": "2026-09-05T13:50:21.281721Z",
+        "nonemptyOutput": true
+      }
+    ],
+    "uninstall": [
+      {
+        "phase": "uninstall-pass",
+        "modelId": "qwen3-asr-0.6b-int8-2026-03-25",
+        "beforeBytes": 2263271242,
+        "afterBytes": 1276255700,
+        "reclaimedBytes": 987015542,
+        "time": "2026-09-05T13:51:27.176966Z"
+      },
+      {
+        "phase": "uninstall-pass",
+        "modelId": "qwen3-0.6b-q8-0",
+        "beforeBytes": 1276255883,
+        "afterBytes": 636797471,
+        "reclaimedBytes": 639458412,
+        "time": "2026-09-05T13:51:27.334373Z"
+      }
+    ],
+    "persistedRoles": {
+      "LIVE_ASR": "sensevoice-yue-int8-2024-07-17",
+      "QUALITY_ASR": "sensevoice-yue-int8-2024-07-17",
+      "MEETING_LLM": "qwen3-0.6b-q4-k-m"
+    }
+  }
+}

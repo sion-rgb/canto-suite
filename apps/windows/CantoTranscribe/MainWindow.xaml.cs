@@ -102,7 +102,7 @@ public sealed partial class MainWindow : Window
 
     private async void InstallSrtModel_Click(object sender, RoutedEventArgs e)
     {
-        if (_srtModels is null) return;
+        if (_srtModels is null || _cancellation is not null) return;
         InstallSrtModelButton.IsEnabled = false;
         ModelProgress.Visibility = Visibility.Visible;
         _cancellation = new CancellationTokenSource();
@@ -133,7 +133,7 @@ public sealed partial class MainWindow : Window
 
     private async void InstallModel_Click(object sender, RoutedEventArgs e)
     {
-        if (_models is null) return;
+        if (_models is null || _cancellation is not null) return;
         InstallModelButton.IsEnabled = false;
         ModelProgress.Visibility = Visibility.Visible;
         _cancellation = new CancellationTokenSource();
@@ -193,14 +193,14 @@ public sealed partial class MainWindow : Window
                 .Select(role => role == "TXT_ASR" ? "TXT" : "SRT"));
             var profiles = model.QualityProfiles is null ? "自訂" : string.Join(" / ",
                 model.QualityProfiles.Values.SelectMany(value => value).Distinct());
-            var roleNames = string.Join(" / ", model.Roles
-                .Where(role => role is "TXT_ASR" or "SRT_ASR")
-                .Select(role => $"{(role == "TXT_ASR" ? "TXT" : "SRT")}：{model.DisplayNameForRole(role)}"));
-            lines.Add($"{(state.Installed ? "✓ 已安裝" : "○ 未安裝")} · {roleNames} · {roles} · {profiles} · v{model.Revision[..Math.Min(12, model.Revision.Length)]} · {state.TotalBytes / 1024d / 1024d:0} MiB");
+            var active = string.Join(" / ", new[] {
+                _modelRegistry.ActiveTxtModelId == model.Id ? "TXT 已選用" : null,
+                _modelRegistry.ActiveSrtModelId == model.Id ? "SRT 已選用" : null }.Where(value => value is not null));
+            lines.Add($"{model.DisplayName} · {model.Id}\n{(state.Installed ? "✓ 已安裝及驗證" : "○ 未安裝或需修復")} · {(active.Length > 0 ? active : "未啟用")} · {roles} · 預設組合：{profiles} · v{model.Revision} · {state.TotalBytes / 1024d / 1024d:0.0} MiB");
         }
         InstalledModelsText.Text = string.Join(Environment.NewLine, lines);
         var storageBytes = await Task.Run(_modelRegistry.StorageBytes);
-        ModelStorageText.Text = $"模型儲存空間：{storageBytes / 1024d / 1024d:0} MiB";
+        ModelStorageText.Text = $"模型儲存空間（包括續傳暫存）：{storageBytes / 1024d / 1024d:0.0} MiB";
     }
 
     private async void QualityProfile_Checked(object sender, RoutedEventArgs e)
@@ -223,14 +223,16 @@ public sealed partial class MainWindow : Window
     private async void ActiveTxtModel_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_modelUiReady || _syncingModelSelection || ActiveTxtModelBox.SelectedItem is not CatalogModel model) return;
-        await _modelRegistry.SetActiveAsync("TXT_ASR", model.Id);
+        try { await _modelRegistry.SetActiveAsync("TXT_ASR", model.Id); }
+        catch (Exception error) { await ShowErrorAsync(error.Message); }
         await RefreshActiveModelsAsync();
     }
 
     private async void ActiveSrtModel_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_modelUiReady || _syncingModelSelection || ActiveSrtModelBox.SelectedItem is not CatalogModel model) return;
-        await _modelRegistry.SetActiveAsync("SRT_ASR", model.Id);
+        try { await _modelRegistry.SetActiveAsync("SRT_ASR", model.Id); }
+        catch (Exception error) { await ShowErrorAsync(error.Message); }
         await RefreshActiveModelsAsync();
     }
 
@@ -262,8 +264,7 @@ public sealed partial class MainWindow : Window
             var token = _cancellation.Token;
             await Task.Run(async () =>
             {
-                if (redownload) await manager.DeleteAsync();
-                await manager.InstallAsync(progress, token);
+                await manager.InstallAsync(progress, token, forceRedownload: redownload);
             });
             await RefreshActiveModelsAsync();
         }
@@ -302,7 +303,7 @@ public sealed partial class MainWindow : Window
 
     private async void ManageDelete_Click(object sender, RoutedEventArgs e)
     {
-        if (ManagedModel is not { } model) return;
+        if (ManagedModel is not { } model || _cancellation is not null) return;
         var dialog = new ContentDialog
         {
             Title = "刪除模型？",
@@ -312,8 +313,14 @@ public sealed partial class MainWindow : Window
             XamlRoot = Content.XamlRoot
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-        await Task.Run(() => _modelRegistry.Manager(model).DeleteAsync());
-        await RefreshActiveModelsAsync();
+        try
+        {
+            var before = _modelRegistry.Manager(model).StorageBytes();
+            await _modelRegistry.UninstallAsync(model);
+            await RefreshActiveModelsAsync();
+            ModelStorageText.Text += $" · 已卸載 {model.DisplayName}，回收 {before / 1024d / 1024d:0.0} MiB";
+        }
+        catch (Exception error) { await ShowErrorAsync(error.Message); }
     }
 
     private async void ChooseFile_Click(object sender, RoutedEventArgs e)

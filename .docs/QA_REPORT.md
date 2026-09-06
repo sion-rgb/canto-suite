@@ -1,8 +1,47 @@
 # QA report
 
-Executed on 2026-09-05 (Asia/Hong_Kong). A source file or successful compile alone is not counted as end-to-end acceptance.
+Model-management amendment executed on 2026-09-05–06 (Asia/Hong_Kong). A source file, button, or successful compile alone is not counted as end-to-end acceptance. This task is **model management only**; the RC3 workflow results retained below are historical baseline evidence, not claims that every unrelated workflow was re-run on this build.
 
-## Core acceptance status
+## Current model-management acceptance
+
+| Core item | Status | Actual evidence |
+|---|---|---|
+| CORE-MODEL-WIN-001 | PASS | Production WinUI manager visibly exposes SenseVoice INT8, Qwen3-ASR 0.6B INT8, Whisper Base/Small/Large-v3-Turbo names, full IDs, roles, version, size, installed/active state. TXT and SRT were changed independently through the UI and persisted IDs read back. A real-installer/native harness installed four pinned ASR models into an isolated QA root and loaded selected TXT SenseVoice/Qwen/Base and SRT Small/Base through the actual C ABI. Every run produced nonempty real Cantonese output and recorded loaded path/backend. Uninstall removed the entire non-active Qwen model directory and metadata, returned false installed state and reclaimed exactly 987,015,511 bytes. |
+| CORE-MODEL-AND-001 | PASS | **EMULATOR PASS:** API 35 Google APIs x86_64, 6144 MiB RAM, ARM64 AOT APK via `libndk_translation.so`. Settings → AI Models exposes all three independent roles and real names/IDs. Actual native runs loaded both SenseVoice and Qwen ASR for both LIVE_ASR and QUALITY_ASR, then both Qwen Q4_K_M and Q8_0 LLM files with nonempty generation. Selected-role receipts were written only after successful FFI load acknowledgement. Non-active Qwen ASR and Q8 LLM directories/metadata were removed and reclaimed exactly 987,015,542 and 639,458,412 bytes. Registry reopen and cold-relaunch retained independent selections. **PHYSICAL DEVICE NOT TESTED:** no phone/tablet attached. |
+
+Machine-readable, sanitized evidence: [MODEL_MANAGEMENT_EVIDENCE.json](MODEL_MANAGEMENT_EVIDENCE.json). No private recording, transcript, or model weight is committed. Windows and Android native QA use public upstream Cantonese PCM and isolated model copies; original host model caches remain untouched. Deleted QA models can be restored through their pinned downloads.
+
+### Checks executed for this amendment
+
+- Flutter tests: **PASS 15/15**, including independent role/preset persistence; selected/in-use uninstall refusal; real filesystem deletion and exact byte accounting; failed-delete rollback; failed selection-file writes; failed redownload preserving verified bytes; corrupt-model activation refusal; Quality ASR checkpoints only reused for the same model/revision; retained Chinese-script setting.
+- `flutter analyze`: **PASS**, no issues. Existing hardware recommendation, first-setup output-script choice, and privacy disclosure are retained alongside explicit model selection.
+- Windows tests: **PASS 12/12**, including registry role compatibility, selected/in-use guards, file deletion, storage reclamation, failed deletion/redownload/selection writes, and TXT/SRT cleanup regression.
+- Native CMake/MSVC Release build and CTest: **PASS 1/1**. Existing sherpa-onnx `qwen3_asr` C API adapter is used; TXT Qwen has timestamps disabled. Whisper timestamp mode remains role-specific.
+- Real Windows native harness: **PASS**, including successful native load, exact selected ID/revision/path, real ASR output, persisted roles, and physical file deletion. Final local evidence: `release/native-qa-059057d4a18441eaade8c5d9f64de27c/evidence.json` (ignored QA folder, never a release asset).
+- Real Android alternate-entry-point harness: **EMULATOR PASS**, completed `2026-09-05T13:52:15Z`, retrieved again after emulator restart. Local raw evidence: `work/model-management/android-evidence.json`; on-device isolated root: `files/qa-model-management`. All four models passed the real installer's size/SHA verification before use. Files were preseeded into verified staging for repeatability; this is **not** new fresh-network-download evidence.
+- Production Android UI: **EMULATOR PASS** for Settings → AI Models, separate ASR/LLM drop-down names, full role IDs, revision/size/storage and uninstall controls. Applying Standard changed Quality to Qwen while preserving Live SenseVoice and LLM Q4; the UI explicitly disabled uninstalled Quality until download. Switching Quality back to installed SenseVoice persisted `custom` without changing Live or LLM. Main product APK, not the QA entry point, was installed for these observations.
+- Catalog validator: **PASS**, eight entries and three distinct Android preset bundles; JSON Schema validation **PASS**. Shared catalog is read from the actual APK Android asset through the existing method channel, not an omitted out-of-project Flutter asset.
+- APK/WinUI production builds: **PASS**; the downloadable local artifacts below contain no model weights. The QA-only alternate entry point is not distributed. Windows localization directories are retained intact.
+
+The two current model-management CORE items have no PARTIAL/FAIL/NOT TESTED implementation remainder. Android physical-device testing remains explicitly **PHYSICAL DEVICE NOT TESTED**, not an emulator-equivalent claim. Native LLM QA in this amendment intentionally generates a short nonempty token sample: it validates selected-model loading/invocation, **not** complete summary JSON, semantic fidelity, or comparative model quality. Qwen live ASR is offline-chunk inference, not a low-latency streaming claim. No new thermal, battery, acoustic-microphone, ARM64 performance, accuracy-ranking, or multi-hour physical-soak claim is made.
+
+### Additional pinned models actually tested
+
+| Model | Revision | Source and main-file SHA-256 | Local QA path / license |
+|---|---|---|---|
+| Qwen3-ASR 0.6B INT8 | `68818b2313fe77bd06f6a7c5068ff3ef59d02b8a` | Official `k2-fsa/sherpa-onnx` release `asr-models` dated 2026-03-25; archive SHA-256 `393f8a14e2f5fb96746aaab342997a40641001fbd5bf9592a080a8329178ee96`. Decoder SHA-256 `4f6885be5959ae26af3089d38ee7972c5fafbeeb1cf8d5e76eab6d8b61ca5771`; all six model/tokenizer files match pinned Hugging Face identities in the catalog. | `work/model-management/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25`; Apache-2.0 reference in catalog/notices. |
+| Qwen3 0.6B Q8_0 | `23749fefcc72300e3a2ad315e1317431b06b590a` | Official `Qwen/Qwen3-0.6B-GGUF`; GGUF SHA-256 `9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031`, 639,446,688 bytes. | `work/model-management/Qwen3-0.6B-Q8_0.gguf`; Apache-2.0, downloaded license pinned in catalog. |
+
+SenseVoice, Whisper Base/Small, and Qwen Q4 use the unchanged revisions/hashes in the integrity table below. Whisper Large-v3-Turbo remains selectable and was validated in the RC3 baseline; it was not used as a new comparative-accuracy benchmark in this amendment.
+
+### Current local model-management test artifacts
+
+- Android main-entry-point ARM64 release APK: `release/android-arm64-model-management/CantoMeet-arm64-release.apk`, 57,152,863 bytes; SHA-256 `84ed950a2c928eefc0a6585f97aa5eaa855f66424e15fdbb9059956bc57aee76`. Development-signed, installed successfully on the emulator; physical Android validation is pending. Release manifest retains INTERNET, ACCESS_NETWORK_STATE and RECORD_AUDIO; all real ARM64 ASR/LLM libraries and the shared model catalog are included.
+- Complete WinUI portable package: `release/CantoTranscribe-Windows-x64-model-management.zip`, 263,716,538 bytes; SHA-256 `8567e967c1acbc9ba8ff52e7b88d542198422133b6e27185931802a85eb564dd`. All 466 packaged files were individually SHA-256 compared with `release/windows-winui-x64-model-management/`; no model weights or private media are included. The ZIP was extracted to `work/model-management/portable-final` and its real WinUI EXE launched; the final model manager visibly showed all five model names/IDs, independent roles, storage and uninstall controls. Extract the complete ZIP and run its EXE; do not move only the EXE.
+- Checksums: `release/Canto-Suite-model-management-SHA256SUMS.txt`.
+- Source branch: `master`, existing private remote `https://github.com/sion-rgb/canto-suite`. This amendment prepares local test packages and source changes; **no new GitHub Release or tag is created by this model-management-only task**. RC3 below is historical and does not contain this amendment.
+
+## RC3 baseline core acceptance status (historical)
 
 | Core item | Status | Evidence / blocker |
 |---|---|---|
@@ -24,7 +63,7 @@ Executed on 2026-09-05 (Asia/Hong_Kong). A source file or successful compile alo
 | CORE-WIN-006 Long media bounded processing | PASS | A 12-minute duration-expanded real Cantonese WAV streamed through packaged FFmpeg into bounded 10-second native chunks. Fast completed 720,000 ms/72 ASR results with 488 MiB working set. During High CPU inference the WinUI window was captured, dragged, clicked and cancelled; reserving two logical processors removed the earlier capture timeout. |
 | CORE-WIN-007 Resume | PASS | High job cancellation preserved 69,000 ms of model/revision-bound progress. UI acknowledgement was visible while native cleanup ran in the background; the prior 5-minute job also resumed above 41,344 ms and completed. |
 | CORE-WIN-008 Packaging independence | PASS | Current 465-file self-contained publish was copied to `work/portable-hangfix4-20260903`; its EXE launched directly and ran real timestamp SRT. No source-tree or dev-server runtime dependency is present. |
-| CORE-WIN-009 Model roles, profiles, and management | PASS | Fast/Balanced/High map to three distinct SHA-pinned bundles. TXT/SRT have independent catalog labels and runtime modes; shared Whisper weights explicitly run content mode with timestamps off for TXT and timestamp mode for SRT. Model Management exposes active roles, installed/version/size/storage, download/switch/repair-update/delete/redownload. Small and Large-v3-Turbo passed real native Cantonese audio; Base is Fast SRT only. |
+| CORE-WIN-009 Model roles, profiles, and management | PASS | Historical profile/runtime validation: Fast/Balanced/High map to three distinct SHA-pinned bundles; shared Whisper weights run timestamps off for TXT and on for SRT. Explicit real-model management and uninstall are superseded and directly verified by CORE-MODEL-WIN-001 above. Base remains Fast SRT and is now also an explicit manual TXT choice. |
 | CORE-WIN-UI-001 WinUI production UI | PASS | Production is WinUI 3/C# + C ABI/C++; final copied publish launched and real TXT/SRT paths pass. Tauri is legacy/reference only. |
 | CORE-SHARED-001 Cantonese display | PASS | Automated preservation test passes for `嘅 喺 冇 咗 啲 嚟 噉`. |
 | CORE-SHARED-002 Cantonese-English code switching | PASS | Ground-truth sample `我哋下個 sprint 會 update 個 API。` was processed and observed unchanged. This is preservation QA, not an accuracy claim. |
@@ -33,9 +72,9 @@ Executed on 2026-09-05 (Asia/Hong_Kong). A source file or successful compile alo
 | CORE-SHARED-005 No private content upload | PASS | Source audit finds HTTP clients only in Android/Windows model installers. Audio, transcript, summary, speakers, ASR, LLM, and export have no upload endpoint. |
 | CORE-SHARED-006 Clean Cantonese and Hong Kong Traditional | PASS | Final conversion runs after cleanup for both TXT and every SRT cue. Sanitized regression converts `后/个/柜/墙/这` to `後/個/櫃/牆/這`, preserves `我哋/佢哋/唔/冇/喺/嘅/啲/咗/嚟`, conservatively collapses repeated fillers/restarts, and deliberately leaves semantic error `開飛` unchanged. |
 
-The only non-PASS CORE items are externally blocked: CORE-AND-010 still requires a fresh physical ARM64-device network download, and CORE-WIN-005 still requires an administrator/UAC-only outbound firewall test. There are no CORE items marked PARTIAL, FAIL, or NOT TESTED. Every Android runtime result above independently states emulator versus physical-device status.
+The RC3 baseline retained two external blockers: CORE-AND-010 requires a fresh physical ARM64-device network download, and CORE-WIN-005 requires an administrator/UAC-only outbound firewall test. This model-management-only task does not relabel those tests as passed or rerun unrelated workflows. Every Android runtime result independently states emulator versus physical-device status.
 
-## Executed tests and builds
+## RC3 baseline tests and builds (historical)
 
 - Android tool inventory: PASS through `scripts/android_emulator_qa.ps1`. `adb`, Emulator 36.6.11, `sdkmanager`, and `avdmanager` are available; installed `system-images;android-35;google_apis;x86_64` and existing `PixelQuickCut_API35` were used.
 - Android AVD suitability: PASS after assigning 4096 MiB RAM. The AVD advertises x86_64/ARM64 Native Bridge and successfully loaded every production ARM64 library (`canto_core`, sherpa-onnx, ONNX Runtime, `canto_llm`, llama.cpp/ggml). A separate x86_64 QA build was therefore not required.
@@ -82,7 +121,7 @@ Observed final Windows exports:
 
 OpenCC dictionary revision: `26753884f1984add422f3b0249ccee8613deaff6`, Apache-2.0, packaged with its LICENSE. `STCharacters.txt` SHA-256 `a0ca1601c70648cf48b33c3c6210ccbecc5c7eead4b4c3daf76587ba2c03582b`; `STPhrases.txt` SHA-256 `f6eab5e5c6dd7640597878d3dfc6599ee1279d2bc91561eadd8e114194e2925a`.
 
-## Final artifacts
+## RC3 artifacts (historical, not the model-management build)
 
 - Android: `release/android-arm64/CantoMeet-arm64-release.apk`, 56,955,559 bytes, SHA-256 `5590E9A960D493AE264D17C5A36C49BAA1F339EABC0330E245E8809D4F54057C`.
 - Windows: `release/windows-winui-x64-production/CantoTranscribe.exe`, 272,896 bytes, SHA-256 `18C073896D6535D5665E3FC3A6754B4541144992978643AF96230DD5C605433E`; distribute the complete containing directory.
@@ -96,7 +135,7 @@ OpenCC dictionary revision: `26753884f1984add422f3b0249ccee8613deaff6`, Apache-2
 - No licensed Hong Kong meeting corpus is committed. CER/WER, multi-speaker/noisy-room accuracy, physical microphone quality, ARM64 performance, thermal/battery, four-hour physical Android soak, and eight-hour Windows soak remain untested benchmarking rather than emulator/CORE claims.
 - Flutter reports that `record_android` still applies the legacy Kotlin Gradle Plugin; it builds successfully but should be upgraded before a future Flutter release enforces built-in Kotlin.
 
-## Git state
+## RC3 publication record (historical)
 
 - Branch: `master`.
 - Verified implementation commit: `2741ae735e9ca7db2d974de88f5af4140351ce61`.

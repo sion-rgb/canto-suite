@@ -7,7 +7,9 @@ Canto Suite ships or downloads the following third-party components. Source/runt
 | Flutter / Dart | workspace Flutter stable | Flutter SDK license | Android UI/runtime |
 | Microsoft Windows App SDK / WinUI 3 | `1.8.260803003` | NuGet package license | Production Windows UI |
 | .NET runtime | `8.0` | Microsoft .NET license | Self-contained Windows publish |
-| sherpa-onnx C API | `1.13.6` | `third_party/sherpa-onnx/licenses/sherpa-onnx-LICENSE` | SenseVoice ASR adapter |
+| sherpa-onnx C API | `1.13.6` | `third_party/sherpa-onnx/licenses/sherpa-onnx-LICENSE` | SenseVoice and Qwen3-ASR adapters |
+| Qwen3-ASR 0.6B INT8 ONNX | export 2026-03-25, HF revision `68818b2313fe77bd06f6a7c5068ff3ef59d02b8a` | Apache-2.0; official Qwen model license linked in catalog | Independent Android ASR and Windows TXT model |
+| Qwen3 0.6B Q8_0 GGUF | revision `23749fefcc72300e3a2ad315e1317431b06b590a` | Apache-2.0; downloaded model `LICENSE` | Optional Android Meeting LLM |
 | ONNX Runtime | `1.27.1` | `third_party/sherpa-onnx/licenses/onnxruntime-LICENSE` | SenseVoice inference |
 | whisper.cpp | `1.9.3` | `third_party/whisper.cpp/LICENSE` | Windows timestamped SRT ASR |
 | OpenCC dictionaries | `26753884f1984add422f3b0249ccee8613deaff6` | Apache-2.0; `shared/opencc/LICENSE` | Deterministic Simplified-to-Hong-Kong-Traditional conversion |

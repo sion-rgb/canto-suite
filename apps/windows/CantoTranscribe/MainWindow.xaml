@@ -15,9 +15,9 @@
       <TextBlock x:Name="SrtModelStatusText" Text="正在檢查 SRT 時間碼模型…" TextWrapping="Wrap" Margin="0,4,0,4"/>
       <Button x:Name="InstallSrtModelButton" Content="下載並驗證 SRT 時間碼模型" Click="InstallSrtModel_Click" Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,4,0,10"/>
       <StackPanel Orientation="Horizontal" Margin="0,4,0,24">
-        <RadioButton x:Name="FastProfile" Content="快速" GroupName="Quality" Checked="QualityProfile_Checked" Margin="0,0,22,0"/>
-        <RadioButton x:Name="BalancedProfile" Content="平衡 · 建議" GroupName="Quality" Checked="QualityProfile_Checked" Margin="0,0,22,0"/>
-        <RadioButton x:Name="HighProfile" Content="高準確度" GroupName="Quality" Checked="QualityProfile_Checked"/>
+        <RadioButton x:Name="FastProfile" Content="快速預設" GroupName="Quality" Checked="QualityProfile_Checked" Margin="0,0,22,0"/>
+        <RadioButton x:Name="BalancedProfile" Content="平衡預設" GroupName="Quality" Checked="QualityProfile_Checked" Margin="0,0,22,0"/>
+        <RadioButton x:Name="HighProfile" Content="高準確度預設" GroupName="Quality" Checked="QualityProfile_Checked"/>
       </StackPanel>
 
       <Button Content="模型管理" Click="ToggleModelManagement_Click" HorizontalAlignment="Left" Margin="0,0,0,10"/>
@@ -38,7 +38,7 @@
             <Button Content="設為 TXT" Click="ManageSetTxt_Click"/>
             <Button Content="設為 SRT" Click="ManageSetSrt_Click"/>
             <Button Content="修復／更新" Click="ManageRepair_Click"/>
-            <Button Content="刪除" Click="ManageDelete_Click"/>
+            <Button Content="卸載／刪除" Click="ManageDelete_Click"/>
             <Button Content="重新下載" Click="ManageRedownload_Click"/>
           </StackPanel>
         </StackPanel>

@@ -4,12 +4,16 @@
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\CantoTranscribe\ChineseScriptConverter.cs" Link="ChineseScriptConverter.cs" />
     <Compile Include="..\CantoTranscribe\DictionaryService.cs" Link="DictionaryService.cs" />
     <Compile Include="..\CantoTranscribe\JobStore.cs" Link="JobStore.cs" />
     <Compile Include="..\CantoTranscribe\ModelManager.cs" Link="ModelManager.cs" />
+    <Compile Include="..\CantoTranscribe\ModelRegistry.cs" Link="ModelRegistry.cs" />
+    <Compile Include="..\CantoTranscribe\ModelUseGate.cs" Link="ModelUseGate.cs" />
+    <Compile Include="..\CantoTranscribe\NativeEngine.cs" Link="NativeEngine.cs" />
     <Compile Include="..\CantoTranscribe\OutputNormalizer.cs" Link="OutputNormalizer.cs" />
     <Compile Include="..\CantoTranscribe\SrtFormatter.cs" Link="SrtFormatter.cs" />
     <Content Include="..\..\..\shared\cantonese-dictionary\default.v1.json"

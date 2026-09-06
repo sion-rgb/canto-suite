@@ -30,6 +30,7 @@ class LocalLlmWorker {
   late final StreamSubscription<dynamic> _subscription;
   final Map<int, Completer<String>> _pending = {};
   int _nextId = 1;
+  Future<void>? _disposing;
 
   static Future<LocalLlmWorker> start(String modelPath,
       {int threads = 4}) async {
@@ -68,8 +69,12 @@ class LocalLlmWorker {
     }
   }
 
-  Future<void> dispose() async {
-    _commands.send({'dispose': true});
+  Future<void> dispose() => _disposing ??= _dispose();
+  Future<void> _dispose() async {
+    final reply = ReceivePort();
+    _commands.send({'dispose': true, 'reply': reply.sendPort});
+    await reply.first;
+    reply.close();
     for (final completer in _pending.values) {
       completer.completeError(StateError('本機 LLM 已停止'));
     }
@@ -108,6 +113,7 @@ void _llmWorkerMain((SendPort, SendPort, String, int) args) {
     if (raw['dispose'] == true) {
       destroy(handle);
       commands.close();
+      (raw['reply'] as SendPort).send(null);
       return;
     }
     final id = raw['id'];

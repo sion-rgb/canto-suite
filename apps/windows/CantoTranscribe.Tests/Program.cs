@@ -146,9 +146,62 @@ await RunAsync("Model download Range resume, SHA-256, and atomic install", async
             new Progress<ModelProgress>(_ => { }), CancellationToken.None);
         if (!redownloaded.Verified || manager.StorageBytes() < bytes.Length)
             throw new Exception("redownload/storage reporting failed");
+        var failing = new ModelManager(root: root, model: model,
+            clientFactory: () => new HttpClient(new OfflineHandler()));
+        await MustFail(() => failing.InstallAsync(new Progress<ModelProgress>(), CancellationToken.None, forceRedownload: true));
+        if (!(await manager.GetStateAsync()).Verified) throw new Exception("failed redownload destroyed working model");
     }
     finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
 });
+
+await RunAsync("Registry role switching, safe uninstall, storage and rollback", async () =>
+{
+    var root = Path.Combine(Path.GetTempPath(), $"canto-registry-{Guid.NewGuid():N}");
+    var bytes = System.Text.Encoding.UTF8.GetBytes("real registry test payload");
+    var sha = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
+    var models = new[] { "first", "second", "third" }.Select(id => new CatalogModel(id, id, "rev",
+        ["TXT_ASR", "SRT_ASR"], ["windows-x64"], "fixture", "fixture", true,
+        [new CatalogFile("model.bin", bytes.Length, sha, [])],
+        new Dictionary<string, List<string>> { ["TXT_ASR"] = ["Fast"], ["SRT_ASR"] = ["Fast"] })).ToList();
+    try
+    {
+        foreach (var model in models.Take(2))
+        {
+            var directory = Path.Combine(root, model.Id, model.Revision);
+            Directory.CreateDirectory(directory);
+            await File.WriteAllBytesAsync(Path.Combine(directory, "model.bin"), bytes);
+        }
+        var registry = new ModelRegistry(root, models);
+        await registry.InitializeAsync();
+        await registry.SetActiveAsync("TXT_ASR", "second");
+        Equal("second", registry.ActiveTxtModelId);
+        Equal("first", registry.ActiveSrtModelId);
+        Directory.CreateDirectory(Path.Combine(root, "model-selections.json.part"));
+        await MustFail(() => registry.SetActiveAsync("TXT_ASR", "first"));
+        Equal("second", registry.ActiveTxtModelId);
+        Directory.Delete(Path.Combine(root, "model-selections.json.part"));
+        await MustFail(() => registry.SetActiveAsync("TXT_ASR", "third"));
+        Equal("second", registry.ActiveTxtModelId);
+        await MustFail(() => registry.UninstallAsync(models[0]));
+        await registry.SetActiveAsync("SRT_ASR", "second");
+        using (ModelUseGate.Acquire(registry.Manager(models[0]).InstalledPath))
+            await MustFail(() => registry.UninstallAsync(models[0]));
+        await MustFail(() => registry.UninstallAsync(models[0], _ => throw new IOException("injected delete failure")));
+        if (!(await registry.Manager(models[0]).GetStateAsync()).Verified) throw new Exception("failed delete lost installed model");
+        var before = registry.StorageBytes();
+        await registry.UninstallAsync(models[0]);
+        if (Directory.Exists(Path.Combine(root, "first")) || before - registry.StorageBytes() != bytes.Length)
+            throw new Exception("uninstall did not reclaim exact model bytes");
+        var reloaded = new ModelRegistry(root, models);
+        await reloaded.InitializeAsync();
+        Equal("second", reloaded.ActiveTxtModelId);
+        Equal("second", reloaded.ActiveSrtModelId);
+    }
+    finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+});
+
+if (args.Length > 0 && args[0] == "--native-model-qa")
+    await RunAsync("Real installed model ID/native load/uninstall", () => ModelManagementQa.RunAsync(args[1], args[2], args[3]));
 
 if (failures.Count > 0)
 {
@@ -156,7 +209,7 @@ if (failures.Count > 0)
     return 1;
 }
 
-Console.WriteLine("CantoTranscribe pure logic tests: PASS (11/11)");
+Console.WriteLine("CantoTranscribe tests: PASS");
 return 0;
 
 void Run(string name, Action test)
@@ -175,6 +228,13 @@ void Equal(string expected, string actual)
 {
     if (!string.Equals(expected, actual, StringComparison.Ordinal))
         throw new Exception($"expected '{expected}', got '{actual}'");
+}
+
+async Task MustFail(Func<Task> action)
+{
+    try { await action(); }
+    catch (Exception error) when (error is InvalidOperationException or IOException or UnauthorizedAccessException) { return; }
+    throw new Exception("unsafe operation unexpectedly succeeded");
 }
 
 sealed class RangeHandler(byte[] bytes) : HttpMessageHandler
@@ -202,4 +262,10 @@ sealed class RangeHandler(byte[] bytes) : HttpMessageHandler
             offset, bytes.Length - 1, bytes.Length);
         return Task.FromResult(response);
     }
+}
+
+sealed class OfflineHandler : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) =>
+        throw new HttpRequestException("injected offline source");
 }

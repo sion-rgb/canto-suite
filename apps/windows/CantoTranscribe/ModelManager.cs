@@ -26,7 +26,7 @@ internal sealed record CatalogModel(
     [JsonIgnore] public string SrtDisplayName => DisplayNameForRole("SRT_ASR");
 
     public string DisplayNameForRole(string role) =>
-        RoleDisplayNames?.TryGetValue(role, out var value) == true ? value : DisplayName;
+        $"{DisplayName} · {(role == "SRT_ASR" ? "SRT / Timestamp" : role)} · {Id}";
 
     public bool TimestampModeForRole(string role) =>
         RoleRuntimeOptions?.TryGetValue(role, out var value) == true
@@ -127,10 +127,11 @@ internal sealed class ModelManager
     }
 
     public async Task<ModelState> InstallAsync(IProgress<ModelProgress> progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, bool forceRedownload = false)
     {
+        using var mutation = ModelUseGate.Acquire(InstalledPath, mutation: true);
         var current = await GetStateAsync(cancellationToken);
-        if (current.Verified) return current;
+        if (current.Verified && !forceRedownload) return current;
 
         var staging = System.IO.Path.Combine(_root, ".staging", $"{_model.Id}-{_model.Revision}");
         Directory.CreateDirectory(staging);
@@ -187,15 +188,30 @@ internal sealed class ModelManager
     public Task<ModelState> RepairAsync(IProgress<ModelProgress> progress,
         CancellationToken cancellationToken) => InstallAsync(progress, cancellationToken);
 
-    public Task DeleteAsync() => Task.Run(() =>
+    internal Task DeleteAsync(Action<string>? deleteDirectory = null) => Task.Run(() =>
     {
-        if (Directory.Exists(InstalledPath)) Directory.Delete(InstalledPath, true);
+        using var mutation = ModelUseGate.Acquire(InstalledPath, mutation: true);
+        var modelRoot = SafeChildPath(_root, _model.Id);
+        if (!Directory.Exists(modelRoot)) return;
+        // Moving the entire ID removes every revision and install manifest in one step.
+        var trash = SafeChildPath(_root, $".trash/{_model.Id}-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.GetDirectoryName(trash)!);
+        Directory.Move(modelRoot, trash);
+        try { (deleteDirectory ?? (path => Directory.Delete(path, true)))(trash); }
+        catch
+        {
+            // Restore visibility after failure. GetState always re-verifies all bytes;
+            // it never trusts a stale install.json after a partial filesystem failure.
+            if (Directory.Exists(trash) && !Directory.Exists(modelRoot)) Directory.Move(trash, modelRoot);
+            throw;
+        }
     });
 
     public long StorageBytes()
     {
-        if (!Directory.Exists(InstalledPath)) return 0;
-        return new DirectoryInfo(InstalledPath).EnumerateFiles("*", SearchOption.AllDirectories)
+        var modelRoot = SafeChildPath(_root, _model.Id);
+        if (!Directory.Exists(modelRoot)) return 0;
+        return new DirectoryInfo(modelRoot).EnumerateFiles("*", SearchOption.AllDirectories)
             .Sum(file => file.Length);
     }
 
