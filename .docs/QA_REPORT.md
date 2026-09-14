@@ -54,7 +54,7 @@ SenseVoice, Whisper Base/Small, and Qwen Q4 use the unchanged revisions/hashes i
 - Android main-entry-point ARM64 release APK: `release/android-arm64-rc5/CantoMeet-arm64-release.apk`, 57,152,867 bytes; SHA-256 `8921ae45cc3d4aae4c101baf0084a706d094efc9614a67f5ea39c34a522d0855`. Development-signed and freshly installed on the emulator; physical Android validation is pending. Release manifest retains INTERNET, ACCESS_NETWORK_STATE and RECORD_AUDIO; all real ARM64 ASR/LLM libraries and the shared model catalog are included.
 - Complete WinUI portable package: `release/CantoTranscribe-Windows-x64-v0.1.0-rc5.zip`, 263,789,099 bytes; SHA-256 `6312ac16716fa9cd90b23e03c3ae8da7d95b5f1f537aa16f70349d1e7b46c77d`. Its 466 ZIP files exactly match `release/windows-winui-x64-rc5/`; `THIRD_PARTY_NOTICES.md` is included and no `.onnx`, `.bin`, `.gguf`, or other model weight is present. Extract the complete ZIP and run its EXE; do not move only the EXE.
 - Checksums: `release/Canto-Suite-v0.1.0-rc5-SHA256SUMS.txt`.
-- Source branch: `master`, existing private remote `https://github.com/sion-rgb/canto-suite`. This correction is published as the private pre-release `v0.1.0-rc5` after the tag/release verification below. RC3 and RC4 remain historical.
+- Source branch: `master`, existing private remote `https://github.com/sion-rgb/canto-suite`. The correction source commit [`fb6a882`](https://github.com/sion-rgb/canto-suite/commit/fb6a882b575bc608b926b9e917cca13b1d7bf5d6) is tagged and published as the private pre-release [`v0.1.0-rc5`](https://github.com/sion-rgb/canto-suite/releases/tag/v0.1.0-rc5). GitHub reports uploaded APK/ZIP SHA-256 values matching the local checksum manifest. RC3 and RC4 remain historical.
 
 ## RC3 baseline core acceptance status (historical)
 
