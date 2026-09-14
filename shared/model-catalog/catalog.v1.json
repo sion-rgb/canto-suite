@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": "2026.09.05",
-  "generatedAt": "2026-09-05T00:00:00Z",
+  "catalogVersion": "2026.09.14",
+  "generatedAt": "2026-09-14T00:00:00Z",
   "models": [
     {
       "id": "sensevoice-yue-int8-2024-07-17",
@@ -259,9 +259,6 @@
         "SRT_ASR"
       ],
       "qualityProfiles": {
-        "TXT_ASR": [
-          "High Accuracy"
-        ],
         "SRT_ASR": [
           "High Accuracy"
         ]
@@ -444,6 +441,11 @@
         "QUALITY_ASR",
         "TXT_ASR"
       ],
+      "qualityProfiles": {
+        "TXT_ASR": [
+          "High Accuracy"
+        ]
+      },
       "platform": [
         "windows-x64",
         "android-arm64"

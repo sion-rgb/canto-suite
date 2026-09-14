@@ -264,9 +264,9 @@ Required runtime/resources must be packaged correctly.
 
 ## CORE-WIN-009 — Model roles, profiles, and management
 
-1. Verify Fast, Balanced, and High Accuracy resolve to three genuinely different SHA-pinned model bundles for both TXT and SRT.
+1. Verify Fast, Balanced, and High Accuracy resolve to three genuinely different SHA-pinned model bundles for both TXT and SRT: Fast TXT/SRT = SenseVoice/Base, Balanced = Whisper Small/Small, High Accuracy = Qwen3-ASR/Whisper Large-v3-Turbo.
 2. Verify model role is separate from quality profile and TXT/SRT active choices can differ.
-3. Verify the Model Management page shows installed models, active TXT/SRT, revision/size, storage use, and working download/switch/repair-update/delete/redownload actions.
+3. Verify the Model Management page shows installed models, active TXT/SRT, revision/size, storage use, and working download/switch/repair-update/delete/redownload actions. When deletion is refused, show the exact active role(s) and require switching them first.
 4. Verify Whisper Base is not mapped or labelled as High Accuracy.
 5. Run real native Cantonese audio through every newly enabled Balanced/High model before describing it as validated.
 6. Do not manually remove Windows App SDK localization folders. Keep a satellite-language restriction only after copied-portable real TXT/SRT tests pass.

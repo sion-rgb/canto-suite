@@ -112,6 +112,15 @@ class _AiModelsScreenState extends State<AiModelsScreen> {
         }
       });
   Future<void> _uninstall(MobileModel model) async {
+    final activeRoles = registry!.selectedRoles(model.id);
+    if (activeRoles.isNotEmpty) {
+      setState(() {
+        status =
+            '${model.name} 正在供 ${activeRoles.map(_roleName).join('／')} 使用；請先切換至另一個已安裝模型。';
+        details = null;
+      });
+      return;
+    }
     final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -251,46 +260,56 @@ class _AiModelsScreenState extends State<AiModelsScreen> {
                 const Divider(height: 24),
                 const Text('所有可用模型 · 選擇前可先下載'),
                 for (final model in current.models)
-                  Card(
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(model.name,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium),
-                                SelectableText(model.id),
-                                Text(
-                                    '${model.roles.where(mobileRoles.contains).join(' / ')}\n版本 ${model.revision}\n${_size(model.bytes)}'),
-                                Text(
-                                    '${installed[model.id] == true ? '已安裝及 SHA-256 驗證' : '未安裝或需修復'} · ${current.isSelected(model.id) ? '已選用' : '未啟用'}${current.inUse(model.id) ? ' · 使用中' : ''}'),
-                                if (model.id == qwenAsrId)
-                                  const Text('離線分段模型；即時模式延遲及記憶體用量較高，請按裝置測試。'),
-                                Wrap(spacing: 8, children: [
-                                  TextButton(
-                                      onPressed: busy
-                                          ? null
-                                          : () => _run(() => _download(model)),
-                                      child: Text(installed[model.id] == true
-                                          ? '驗證／修復'
-                                          : '下載並安裝')),
-                                  TextButton(
-                                      onPressed: busy
-                                          ? null
-                                          : () => _run(() => _download(model,
-                                              redownload: true)),
-                                      child: const Text('重新下載')),
-                                  if (installed[model.id] == true)
+                  () {
+                    final activeRoles = current.selectedRoles(model.id);
+                    final activeDescription = activeRoles.isEmpty
+                        ? '未啟用'
+                        : '已選用：${activeRoles.map(_roleName).join('／')}；切換後才可卸載';
+                    return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(model.name,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium),
+                                  SelectableText(model.id),
+                                  Text(
+                                      '${model.roles.where(mobileRoles.contains).join(' / ')}\n版本 ${model.revision}\n${_size(model.bytes)}'),
+                                  Text(
+                                      '${installed[model.id] == true ? '已安裝及 SHA-256 驗證' : '未安裝或需修復'} · $activeDescription${current.inUse(model.id) ? ' · 原生工作使用中' : ''}'),
+                                  if (model.id == qwenAsrId)
+                                    const Text('離線分段模型；即時模式延遲及記憶體用量較高，請按裝置測試。'),
+                                  Wrap(spacing: 8, children: [
                                     TextButton(
                                         onPressed: busy
                                             ? null
-                                            : () => _uninstall(model),
-                                        child: const Text('卸載／刪除')),
-                                ]),
-                              ]))),
+                                            : () =>
+                                                _run(() => _download(model)),
+                                        child: Text(installed[model.id] == true
+                                            ? '驗證／修復'
+                                            : '下載並安裝')),
+                                    TextButton(
+                                        onPressed: busy
+                                            ? null
+                                            : () => _run(() => _download(model,
+                                                redownload: true)),
+                                        child: const Text('重新下載')),
+                                    if (installed[model.id] == true)
+                                      TextButton(
+                                          onPressed:
+                                              busy || activeRoles.isNotEmpty
+                                                  ? null
+                                                  : () => _uninstall(model),
+                                          child: Text(activeRoles.isEmpty
+                                              ? '卸載／刪除'
+                                              : '先切換才能卸載')),
+                                  ]),
+                                ])));
+                  }(),
               ],
               if (busy) LinearProgressIndicator(value: progress),
               if (status.isNotEmpty)

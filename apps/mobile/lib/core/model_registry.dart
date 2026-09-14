@@ -175,6 +175,9 @@ class MobileModelRegistry {
   Directory directory(MobileModel model) =>
       Directory(p.join(root.path, model.id, model.revision));
   bool isSelected(String id) => selections.values.contains(id);
+  List<String> selectedRoles(String id) => mobileRoles
+      .where((role) => selections[role] == id)
+      .toList(growable: false);
   bool inUse(String id) => (_users[id] ?? 0) > 0;
 
   Future<bool> installed(MobileModel model) async {
@@ -312,8 +315,10 @@ class MobileModelRegistry {
   Future<int> uninstall(MobileModel model,
           {Future<void> Function(Directory)? deleteDirectory}) =>
       _change(() async {
-        if (isSelected(model.id)) {
-          throw const ModelSelectionException('請先為使用呢個模型嘅角色切換至另一個已安裝模型，再卸載');
+        final activeRoles = selectedRoles(model.id);
+        if (activeRoles.isNotEmpty) {
+          throw ModelSelectionException(
+              '模型正在供 ${activeRoles.join('／')} 使用。請先為該角色切換至另一個已安裝模型，再卸載');
         }
         _beginMutation(model.id);
         try {

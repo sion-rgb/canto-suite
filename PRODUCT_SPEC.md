@@ -229,9 +229,9 @@ Validated initial profile mapping:
 |---|---|---|
 | Fast | SenseVoice INT8, content mode | Whisper Base multilingual Q5_1, timestamp mode |
 | Balanced | Whisper Small multilingual Q5_1, content mode (timestamps disabled) | Whisper Small multilingual Q5_1, timestamp mode |
-| High Accuracy | Whisper Large-v3-Turbo Q5_0, content mode (timestamps disabled) | Whisper Large-v3-Turbo Q5_0, timestamp mode |
+| High Accuracy | Qwen3-ASR 0.6B INT8, content mode (timestamps unavailable) | Whisper Large-v3-Turbo Q5_0, timestamp mode |
 
-All three profiles resolve to different revision/SHA-pinned model bundles through the current C++ backend. A physical Whisper bundle may serve both roles only when the catalog explicitly gives it independent role labels and content-versus-timestamp runtime settings; selecting TXT must never silently run the SRT timestamp configuration. Qwen3-ASR 0.6B is an independently selectable native model under section 5.1, after functional Cantonese validation; no comparative accuracy ranking is implied. Whisper Base must never be marketed as the highest-accuracy SRT engine.
+All three profiles resolve to different revision/SHA-pinned TXT and SRT bundles through the current C++ backend. High Accuracy intentionally uses Qwen3-ASR for Cantonese TXT and Whisper Large-v3-Turbo for timestamped SRT. A physical Whisper bundle may serve both roles only when the catalog explicitly gives it independent role labels and content-versus-timestamp runtime settings; selecting TXT must never silently run the SRT timestamp configuration. Qwen3-ASR is a functional current high TXT baseline, not a comparative-accuracy claim. Whisper Base must never be marketed as the highest-accuracy SRT engine.
 
 ### TXT
 
@@ -253,7 +253,7 @@ Do not claim word-level timestamp precision unless actually implemented and test
 
 Real names and IDs are required in normal Model Manager UI, overriding the older rule that hides engine/quantization names. A quality profile is an optional preset, never a model identity.
 
-Windows exposes independent `TXT_ASR` and `SRT_ASR` selections. Available choices include SenseVoice INT8, Qwen3-ASR 0.6B INT8, Whisper Base Q5_1, Whisper Small Q5_1 and Whisper Large-v3-Turbo Q5_0. SenseVoice/Qwen are TXT-only on Windows; Whisper models support TXT content mode and SRT timestamp mode. The existing Fast/Balanced/High Accuracy presets remain unchanged; Qwen is an explicit manual TXT choice, not a promise of superior accuracy.
+Windows exposes independent `TXT_ASR` and `SRT_ASR` selections. Available choices include SenseVoice INT8, Qwen3-ASR 0.6B INT8, Whisper Base Q5_1, Whisper Small Q5_1 and Whisper Large-v3-Turbo Q5_0. SenseVoice/Qwen are TXT-only on Windows; Whisper models support TXT content mode and SRT timestamp mode. The exact Windows presets are Fast = SenseVoice/Base, Balanced = Whisper Small/Small, High Accuracy = Qwen3-ASR/Whisper Large. Qwen remains an explicit high TXT baseline rather than a promise of superior accuracy in every recording. An older stored High Accuracy preset is migrated to this exact Qwen/Large pair at startup; manually chosen roles remain Custom and are never silently replaced.
 
 Android Settings → AI Models exposes independent `LIVE_ASR`, `QUALITY_ASR`, `MEETING_LLM`. ASR choices are SenseVoice INT8 and Qwen3-ASR 0.6B INT8; LLM choices are Qwen3 0.6B Q4_K_M and Q8_0. Qwen live ASR uses bounded offline-chunk inference, not low-latency streaming. Quantization choices are real different files, not evidence that all semantic ASR errors are corrected.
 
@@ -271,7 +271,7 @@ Each manager shows real name, full ID, role, pinned revision, expected size, ins
 
 Native loading must use the selected role's descriptor, not legacy hard-coded preferences. Android records role/ID/revision/native path only after successful FFI load acknowledgement. Quality recovery checkpoints include model identity so changing Quality ASR does not silently reuse a different model's completed text. Native ownership leases end only after actual worker destruction.
 
-Uninstall is refused while a model is selected by any role or held by an active native worker. Require another compatible installed model first, then ask for destructive-action confirmation. Atomically rename the whole model-ID directory (including install metadata and old revisions), then remove files and report reclaimed bytes. On failure, restore the directory where possible and re-verify actual files; never trust stale `install.json` or report damaged bytes as installed. Redownload stages and verifies replacement files before replacing a working install.
+Uninstall is refused while a model is selected by any role or held by an active native worker. The UI identifies the precise active role(s), such as TXT/SRT or LIVE_ASR/QUALITY_ASR/MEETING_LLM, and asks the user to switch those role(s) to compatible installed model(s) before exposing destructive confirmation. Atomically rename the whole model-ID directory (including install metadata and old revisions), then remove files and report reclaimed bytes. On failure, restore the directory where possible and re-verify actual files; never trust stale `install.json` or report damaged bytes as installed. Redownload stages and verifies replacement files before replacing a working install.
 
 Qwen3-ASR uses the vendored sherpa-onnx C API `qwen3_asr` config, official export dated 2026-03-25, revision `68818b2313fe77bd06f6a7c5068ff3ef59d02b8a`. Official GitHub bundle SHA-256 and all extracted model/tokenizer files are pinned and checked against Hugging Face. Upstream: [sherpa-onnx Qwen3-ASR models](https://k2-fsa.github.io/sherpa/onnx/qwen3-asr/pretrained.html).
 

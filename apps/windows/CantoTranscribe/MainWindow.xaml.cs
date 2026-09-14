@@ -304,6 +304,12 @@ public sealed partial class MainWindow : Window
     private async void ManageDelete_Click(object sender, RoutedEventArgs e)
     {
         if (ManagedModel is not { } model || _cancellation is not null) return;
+        var activeRoles = _modelRegistry.ActiveRoles(model.Id);
+        if (activeRoles.Count != 0)
+        {
+            await ShowErrorAsync($"{model.DisplayName} 正在供 {string.Join("／", activeRoles)} 使用，不能刪除。請先在上方切換該角色至另一個已安裝模型。");
+            return;
+        }
         var dialog = new ContentDialog
         {
             Title = "刪除模型？",

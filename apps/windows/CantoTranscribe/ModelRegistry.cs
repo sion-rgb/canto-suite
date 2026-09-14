@@ -47,13 +47,25 @@ internal sealed class ModelRegistry
             catch (JsonException) { }
         }
 
-        var txt = Find(_selections.ActiveTxtModelId, "TXT_ASR");
-        var srt = Find(_selections.ActiveSrtModelId, "SRT_ASR");
+        CatalogModel? txt;
+        CatalogModel? srt;
+        if (IsPreset(_selections.QualityProfile))
+        {
+            // A named preset is an exact role-pair, not a historical label.
+            // This migrates the old High pair (Large TXT/SRT) to Qwen TXT + Large SRT.
+            txt = ForProfile("TXT_ASR", _selections.QualityProfile!);
+            srt = ForProfile("SRT_ASR", _selections.QualityProfile!);
+        }
+        else
+        {
+            txt = Find(_selections.ActiveTxtModelId, "TXT_ASR");
+            srt = Find(_selections.ActiveSrtModelId, "SRT_ASR");
+        }
         txt ??= await FirstInstalledAsync("TXT_ASR", cancellationToken);
         srt ??= await FirstInstalledAsync("SRT_ASR", cancellationToken);
-        var profile = ModelManager.RecommendProfile();
-        txt ??= ForProfile("TXT_ASR", profile) ?? ForProfile("TXT_ASR", "Fast");
-        srt ??= ForProfile("SRT_ASR", profile) ?? ForProfile("SRT_ASR", "Fast");
+        var recommended = ModelManager.RecommendProfile();
+        txt ??= ForProfile("TXT_ASR", recommended) ?? ForProfile("TXT_ASR", "Fast");
+        srt ??= ForProfile("SRT_ASR", recommended) ?? ForProfile("SRT_ASR", "Fast");
         var selections = new ModelSelections(txt?.Id, srt?.Id,
             CommonProfile(txt, srt) ?? _selections.QualityProfile ?? "Custom");
         await SaveAsync(selections, cancellationToken);
@@ -100,15 +112,22 @@ internal sealed class ModelRegistry
         finally { _changes.Release(); }
     }
 
-    public bool IsActive(string id) => _selections.ActiveTxtModelId == id || _selections.ActiveSrtModelId == id;
+    public IReadOnlyList<string> ActiveRoles(string id) => new[]
+    {
+        _selections.ActiveTxtModelId == id ? "TXT" : null,
+        _selections.ActiveSrtModelId == id ? "SRT" : null,
+    }.Where(role => role is not null).Select(role => role!).ToList();
+
+    public bool IsActive(string id) => ActiveRoles(id).Count != 0;
 
     public async Task UninstallAsync(CatalogModel model, Action<string>? deleteDirectory = null)
     {
         await _changes.WaitAsync();
         try
         {
-            if (IsActive(model.Id))
-                throw new InvalidOperationException("呢個模型已被 TXT 或 SRT 選用。請先切換至另一個已安裝模型，再卸載。");
+            var activeRoles = ActiveRoles(model.Id);
+            if (activeRoles.Count != 0)
+                throw new InvalidOperationException($"呢個模型正在供 {string.Join("／", activeRoles)} 使用。請先把該角色切換至另一個已安裝模型，再卸載。");
             await Manager(model).DeleteAsync(deleteDirectory);
         }
         finally { _changes.Release(); }
@@ -142,6 +161,9 @@ internal sealed class ModelRegistry
             return null;
         return txtProfiles.Intersect(srtProfiles, StringComparer.Ordinal).FirstOrDefault();
     }
+
+    private static bool IsPreset(string? profile) =>
+        profile is "Fast" or "Balanced" or "High Accuracy";
 
     private async Task SaveAsync(ModelSelections selections, CancellationToken cancellationToken)
     {

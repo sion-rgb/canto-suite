@@ -66,8 +66,11 @@ void main() {
         throwsA(isA<ModelSelectionException>()));
   });
   test('selected and native-in-use models cannot be removed', () async {
+    expect(registry.selectedRoles(senseVoiceModelId),
+        ['LIVE_ASR', 'QUALITY_ASR']);
     await expectLater(registry.uninstall(registry.byId(senseVoiceModelId)),
-        throwsA(isA<ModelSelectionException>()));
+        throwsA(predicate((error) => error is ModelSelectionException &&
+            error.message.contains('LIVE_ASR／QUALITY_ASR'))));
     final lease = await registry.acquire('LIVE_ASR');
     await registry.setActive('LIVE_ASR', qwenAsrId);
     await registry.setActive('QUALITY_ASR', qwenAsrId);

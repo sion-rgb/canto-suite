@@ -54,6 +54,8 @@ Run("Quality profiles select different real model bundles", () =>
     var srt = profiles.Select(profile => Pick("SRT_ASR", profile)).ToArray();
     if (txt.Distinct().Count() != 3 || srt.Distinct().Count() != 3)
         throw new Exception("quality profiles are aliases instead of different models");
+    Equal("qwen3-asr-0.6b-int8-2026-03-25", Pick("TXT_ASR", "High Accuracy"));
+    Equal("whisper-large-v3-turbo-q5-0", Pick("SRT_ASR", "High Accuracy"));
     if (Pick("SRT_ASR", "High Accuracy").Contains("base", StringComparison.OrdinalIgnoreCase))
         throw new Exception("Whisper Base is incorrectly marketed as highest accuracy");
     foreach (var profile in profiles)
@@ -71,6 +73,23 @@ Run("Quality profiles select different real model bundles", () =>
     if (!PickModel("SRT_ASR", "High Accuracy").DisplayNameForRole("SRT_ASR")
             .Contains("Timestamp", StringComparison.OrdinalIgnoreCase))
         throw new Exception("High Accuracy SRT role is not labelled independently");
+});
+await RunAsync("High Accuracy preset migration maps TXT to Qwen", async () =>
+{
+    var root = Path.Combine(Path.GetTempPath(), $"canto-high-preset-{Guid.NewGuid():N}");
+    try
+    {
+        Directory.CreateDirectory(root);
+        await File.WriteAllTextAsync(Path.Combine(root, "model-selections.json"),
+            "{\"ActiveTxtModelId\":\"whisper-large-v3-turbo-q5-0\",\"ActiveSrtModelId\":\"whisper-large-v3-turbo-q5-0\",\"QualityProfile\":\"High Accuracy\"}");
+        var registry = new ModelRegistry(root, ModelManager.LoadCatalog().Models);
+        await registry.InitializeAsync();
+        Equal("qwen3-asr-0.6b-int8-2026-03-25", registry.ActiveTxtModelId);
+        Equal("whisper-large-v3-turbo-q5-0", registry.ActiveSrtModelId);
+        if (!registry.ActiveRoles(registry.ActiveTxtModelId).SequenceEqual(["TXT"]))
+            throw new Exception("TXT active-role explanation is missing");
+    }
+    finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
 });
 Run("SRT syntax and segmentation", () =>
 {
